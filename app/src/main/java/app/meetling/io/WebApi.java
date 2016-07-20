@@ -125,6 +125,108 @@ public class WebApi {
         return then;
     }
 
+    public Then<User> edit(User user) {
+        final Then<User> then = new Then<>();
+
+        class RequestTask extends AsyncTask<User, Void, User> {
+
+            @Override
+            protected User doInBackground(User... params) {
+                User user = params[0];
+                User result;
+
+                String endpoint = String.format("/api/users/%s", user.getId());
+                JSONObject returnObj
+                        = (JSONObject) httpPost(endpoint, user.getJson(), user.getAuthSecret());
+
+                checkForErrors(returnObj);
+                result = new User(returnObj);
+
+                return result;
+            }
+
+            @Override
+            protected void onPostExecute(User result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, user);
+
+        return then;
+    }
+
+    public Then<Meeting> edit(Meeting meeting, User user) {
+        final Then<Meeting> then = new Then<>();
+
+        class RequestTask extends AsyncTask<app.meetling.io.Object, Void, Meeting> {
+
+            @Override
+            protected Meeting doInBackground(app.meetling.io.Object... params) {
+                Meeting result;
+                Meeting meeting = (Meeting) params[0];
+                User user = (User) params[1];
+
+                String endpoint = String.format("/api/meetings/%s", meeting.getId());
+                JSONObject returnObj
+                        = (JSONObject) httpPost(endpoint, meeting.getJson(), user.getAuthSecret());
+
+                checkForErrors(returnObj);
+                result = new Meeting(returnObj);
+
+                return result;
+            }
+
+            @Override
+            protected void onPostExecute(Meeting result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, meeting, user);
+
+        return then;
+    }
+
+    public Then<AgendaItem> edit(AgendaItem item, Meeting meeting, User user) {
+        final Then<AgendaItem> then = new Then<>();
+
+        class RequestTask extends AsyncTask<app.meetling.io.Object, Void, AgendaItem> {
+
+            @Override
+            protected AgendaItem doInBackground(app.meetling.io.Object... params) {
+                AgendaItem item = (AgendaItem) params[0];
+                Meeting meeting = (Meeting) params[1];
+                User user = (User) params[2];
+                AgendaItem result;
+                String endpoint
+                        = String.format("/api/meetings/%s/items/%s", meeting.getId(), item.getId());
+                JSONObject returnObj
+                        = (JSONObject) httpPost(endpoint, item.getJson(), user.getAuthSecret());
+
+                checkForErrors(returnObj);
+                result = new AgendaItem(returnObj);
+
+                return result;
+            }
+
+            @Override
+            protected void onPostExecute(AgendaItem result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, item, meeting, user);
+
+        return then;
+    }
+
     public Then<Meeting> createMeeting(
             String title, Date time, String location, String description, User user) {
         final Then<Meeting> then = new Then<>();
@@ -378,6 +480,107 @@ public class WebApi {
         new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, meetingId, user);
 
         return then;
+    }
+
+    public void trashAgendaItem(AgendaItem item, Meeting meeting, User user) {
+
+        class RequestTask extends AsyncTask<Object, Void, Void> {
+
+            @Override
+            protected Void doInBackground(Object... params) {
+                AgendaItem item = (AgendaItem) params[0];
+                Meeting meeting = (Meeting) params[1];
+                User user = (User) params[2];
+
+                JSONObject content;
+
+                try {
+                    content = new JSONObject(String.format("{\"item_id\" : \"%s\"}", item.getId()));
+                } catch (JSONException e) {
+                    // unreachable
+                    throw new RuntimeException(e);
+                }
+
+                checkForErrors(
+                        httpPost(
+                                String.format("/api/meetings/%s/trash-agenda-item",
+                                meeting.getId()), content, user.getAuthSecret()));
+
+                return null;
+            }
+        }
+
+        new RequestTask().execute(item, meeting, user);
+    }
+
+    public void restoreAgendaItem(AgendaItem item, Meeting meeting, User user) {
+
+        class RequestTask extends AsyncTask<app.meetling.io.Object, Void, Void> {
+
+            @Override
+            protected Void doInBackground(app.meetling.io.Object... params) {
+                AgendaItem item = (AgendaItem) params[0];
+                Meeting meeting = (Meeting) params[1];
+                User user = (User) params[2];
+                JSONObject content;
+
+                try {
+                    content = new JSONObject(String.format("{\"item_id\" : \"%s\"}", item.getId()));
+                } catch (JSONException e) {
+                    // unreachable
+                    throw new RuntimeException(e);
+                }
+
+                checkForErrors(
+                        httpPost(
+                                String.format("/api/meetings/%s/restore-agenda-item",
+                                meeting.getId()), content, user.getAuthSecret()));
+
+                return null;
+            }
+        }
+
+        new RequestTask().execute(item, meeting, user);
+    }
+
+    public void moveAgendaItem(AgendaItem item, AgendaItem after, Meeting meeting, User user) {
+
+        class RequestTask extends AsyncTask<app.meetling.io.Object, Void, Void> {
+
+            @Override
+            protected Void doInBackground(app.meetling.io.Object... params) {
+                AgendaItem item = (AgendaItem) params[0];
+                AgendaItem after = (AgendaItem) params[1];
+                Meeting meeting = (Meeting) params[2];
+                User user = (User) params[3];
+                JSONObject content;
+
+                try {
+                    content = new JSONObject(
+                            String.format("{\"item_id\" : \"%s\", \"to_id\" : %s}",
+                                    item.getId(),
+                                    after == null ? null : String.format("\"%s\"", after.getId())));
+                } catch (JSONException e) {
+                    // unreachable
+                    throw new RuntimeException(e);
+                }
+
+                checkForErrors(
+                        httpPost(
+                                String.format("/api/meetings/%s/move-agenda-item", meeting.getId()),
+                                content, user.getAuthSecret()));
+
+                return null;
+            }
+        }
+
+        new RequestTask().execute(item, after, meeting, user);
+    }
+
+    private void checkForErrors(Object returnObj) {
+        if (returnObj != JSONObject.NULL) {
+            checkForErrors((JSONObject) returnObj);
+        }
     }
 
     private void checkForErrors(JSONObject returnObj) {

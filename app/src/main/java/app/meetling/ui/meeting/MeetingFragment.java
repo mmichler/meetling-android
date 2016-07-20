@@ -46,7 +46,16 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
     private Meeting mMeeting;
     private Adapter.AgendaItemAdapter mItemAdapter;
     private Adapter.TrashedItemAdapter mTrashedItemAdapter;
+    private ItemTouchHelper mItemTouchHelper;
     private RecyclerView mRecyclerView;
+    private FloatingActionButton mFabAdd;
+    private FloatingActionButton mFabEdit;
+    private FloatingActionButton mFabRestore;
+    private boolean mItemMoved;
+
+    enum Direction {
+        UP, DOWN
+    }
 
     public static MeetingFragment newInstance(Meeting meeting, User user) {
         return newInstance(meeting, new ArrayList<AgendaItem>(), new ArrayList<AgendaItem>(), user);
@@ -100,6 +109,9 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
             @Override
             public boolean onMenuItemClick(MenuItem item) {
                 switch (item.getItemId()) {
+                    case R.id.action_edit :
+                        mCallback.onEdit(mMeeting);
+                        return true;
                     case R.id.action_share :
                         ClipboardManager clipboard
                                 = (ClipboardManager) getActivity()
@@ -127,6 +139,30 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
         mRecyclerView.addItemDecoration(new DividerItemDecoration());
         // Remove flickering animation when calling RecyclerView.notifyItemChanged()
         ((SimpleItemAnimator) mRecyclerView.getItemAnimator()).setSupportsChangeAnimations(false);
+        mItemTouchHelper = new ItemTouchHelper(new ItemTouchCallback(this));
+
+        mFabAdd = (FloatingActionButton) getActivity().findViewById(R.id.fab_add);
+        mFabAdd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+               mCallback.onAddAgendaItem(mMeeting);
+            }
+        });
+        mFabEdit = (FloatingActionButton) getActivity().findViewById(R.id.fab_edit);
+        mFabEdit.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mCallback.onEdit(mItemAdapter.getActiveItem(), mMeeting);
+            }
+        });
+
+        mFabRestore = (FloatingActionButton) getActivity().findViewById(R.id.fab_restore);
+        mFabRestore.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                restoreAgendaItem(mTrashedItemAdapter.getActiveItem());
+            }
+        });
 
         TabLayout tabLayout = (TabLayout) getActivity().findViewById(R.id.tab_layout);
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
@@ -147,6 +183,132 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
         });
 
         showItems();
+    }
+
+    public void set(Meeting meeting) {
+        mMeeting = meeting;
+        displayMeetingHeader();
+    }
+
+    public void updateOrAdd(@NonNull AgendaItem item) {
+        int index = mItemAdapter.put(item);
+        mRecyclerView.scrollToPosition(index);
+    }
+
+    void trashAgendaItem(int pos) {
+        trashAgendaItem(mItemAdapter.getItemAt(pos));
+    }
+
+    private void trashAgendaItem(AgendaItem item) {
+        mItemAdapter.remove(item);
+        mTrashedItemAdapter.put(item);
+        new WebApi("https://meetling.org").trashAgendaItem(item, mMeeting, mUser);
+    }
+
+    void restoreAgendaItem(AgendaItem item) {
+        mTrashedItemAdapter.remove(item);
+        new WebApi("https://meetling.org").restoreAgendaItem(item, mMeeting, mUser);
+        mItemAdapter.put(item);
+    }
+
+    void moveAgendaItem(int itemPosition, Direction direction) {
+        if (itemPosition == mItemAdapter.getItemCount() && direction == Direction.UP
+                || itemPosition == 0 && direction == Direction.DOWN) {
+            return;
+        }
+        int neighborPosition;
+        if (direction == Direction.UP) {
+            neighborPosition = itemPosition + 1;
+        } else {
+            neighborPosition = itemPosition - 1;
+        }
+        mItemAdapter.swap(itemPosition, neighborPosition);
+        mItemMoved = true;
+    }
+
+    void writeAgendaItemMove(int finalPosition) {
+        mItemAdapter.notifyDataSetChanged();
+        if (!mItemMoved) {
+            return;
+        }
+        mItemMoved = false;
+        AgendaItem item = mItemAdapter.getItemAt(finalPosition);
+        AgendaItem afterItem = finalPosition == 0 ? null : mItemAdapter.getItemAt(finalPosition - 1);
+        new WebApi("https://meetling.org").moveAgendaItem(item, afterItem, mMeeting, mUser);
+    }
+
+    void updateEditFabVisibility() {
+        if (mItemAdapter.hasActiveItem()) {
+            if (mFabAdd.isShown()) {
+                mFabAdd.hide(new FloatingActionButton.OnVisibilityChangedListener() {
+                    @Override
+                    public void onHidden(FloatingActionButton fab) {
+                        super.onHidden(fab);
+                        mFabEdit.show();
+                    }
+                });
+            } else if (mFabRestore.isShown()) {
+                mFabRestore.hide(new FloatingActionButton.OnVisibilityChangedListener() {
+                    @Override
+                    public void onHidden(FloatingActionButton fab) {
+                        super.onHidden(fab);
+                        mFabEdit.show();
+                    }
+                });
+            } else {
+                mFabEdit.show();
+            }
+        } else {
+            if (mFabRestore.isShown()) {
+                mFabRestore.hide(new FloatingActionButton.OnVisibilityChangedListener() {
+                    @Override
+                    public void onHidden(FloatingActionButton fab) {
+                        super.onHidden(fab);
+                        mFabAdd.show();
+                    }
+                });
+            } else {
+                mFabEdit.hide(new FloatingActionButton.OnVisibilityChangedListener() {
+                    @Override
+                    public void onHidden(FloatingActionButton fab) {
+                        super.onHidden(fab);
+                        mFabAdd.show();
+                    }
+                });
+            }
+        }
+    }
+
+    void updateRestoreFabVisibility() {
+        if (mTrashedItemAdapter.hasActiveItem()) {
+            if (mFabAdd.isShown()) {
+                mFabAdd.hide(new FloatingActionButton.OnVisibilityChangedListener() {
+                    @Override
+                    public void onHidden(FloatingActionButton fab) {
+                        super.onHidden(fab);
+                        mFabRestore.show();
+                    }
+                });
+            } else if (mFabEdit.isShown()) {
+                mFabEdit.hide(new FloatingActionButton.OnVisibilityChangedListener() {
+                    @Override
+                    public void onHidden(FloatingActionButton fab) {
+                        super.onHidden(fab);
+                        mFabRestore.show();
+                    }
+                });
+            } else {
+                mFabRestore.show();
+            }
+        } else {
+            if (mFabAdd.isShown()) {
+                mFabAdd.hide();
+            } else if (mFabEdit.isShown()) {
+                mFabEdit.hide();
+            } else {
+                mFabRestore.hide();
+            }
+        }
     }
 
     private void displayMeetingHeader() {
@@ -172,14 +334,19 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
     private void showItems() {
         mItemTouchHelper.attachToRecyclerView(mRecyclerView);
         mRecyclerView.setAdapter(mItemAdapter);
+        updateEditFabVisibility();
     }
 
     private void showTrash() {
         mItemTouchHelper.attachToRecyclerView(null);
         mRecyclerView.setAdapter(mTrashedItemAdapter);
+        updateRestoreFabVisibility();
     }
 
     public interface Callback extends NavigationFragment.Callback {
         void onRefresh(Meeting meeting);
+        void onEdit(Meeting meeting);
+        void onEdit(AgendaItem item, Meeting meeting);
+        void onAddAgendaItem(Meeting meeting);
     }
 }
