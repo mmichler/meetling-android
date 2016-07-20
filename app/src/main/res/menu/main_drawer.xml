@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_view"
+            android:checked="true"
+            android:icon="@drawable/ic_view_agenda_24dp"
+            android:title="Meeting"/>
+        <item
+            android:id="@+id/nav_about"
+            android:icon="@drawable/ic_info_24dp"
+            android:title="About"/>
+    </group>
+
+    <item android:title="Actions">
+        <menu>
+            <item
+                android:id="@+id/nav_new_meeting"
+                android:icon="@drawable/ic_note_add"
+                android:title="Create Meeting"/>
+            <item
+                android:id="@+id/nav_example"
+                android:icon="@drawable/ic_visibility"
+                android:title="View Example"/>
+            <item
+                android:id="@+id/nav_edit_user"
+                android:icon="@drawable/ic_mode_edit_24dp"
+                android:enabled="false"
+                android:title="Edit User Name"/>
+            <item
+                android:id="@+id/nav_clear_history"
+                android:icon="@drawable/ic_close"
+                android:visible="false"
+                android:title="Clear History"/>
+        </menu>
+    </item>
+
+    <item android:title="History"
+          android:id="@+id/nav_history">
+        <menu />
+    </item>
+
+</menu>

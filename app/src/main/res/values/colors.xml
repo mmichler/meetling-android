@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#4d8dd9</color>
+    <color name="colorPrimaryDark">#225ca0</color>
+    <color name="colorAccent">#d94b1f</color>
+
+    <color name="divider">#1F000000</color> <!-- Material Grey 500 -->
+    <color name="background_dark">#eeeeee</color> <!-- Material Grey 200 -->
+    <color name="activeItem">#e8eaf6</color> <!-- Material Indigo 50 -->
+</resources>
