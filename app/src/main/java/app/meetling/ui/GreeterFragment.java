@@ -29,6 +29,13 @@ public class GreeterFragment extends NavigationFragment<GreeterFragment.Callback
     public void onActivityCreated(Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
 
+        Button actionNewMeeting = (Button) getActivity().findViewById(R.id.action_new_meeting);
+        actionNewMeeting.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mCallback.onCreateMeeting();
+            }
+        });
         Button actionViewExample = (Button) getActivity().findViewById(R.id.action_view_example);
         actionViewExample.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -40,5 +47,6 @@ public class GreeterFragment extends NavigationFragment<GreeterFragment.Callback
 
     public interface Callback extends NavigationFragment.Callback {
         void onViewExample();
+        void onCreateMeeting();
     }
 }

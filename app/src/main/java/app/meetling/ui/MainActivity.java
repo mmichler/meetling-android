@@ -175,6 +175,16 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
+        if (requestCode == EDIT_USER_REQUEST) {
+            mUser = intent.getExtras().getParcelable(EXTRA_USER);
+            if (mUser == null) {
+                throw new IllegalArgumentException(
+                        "EDIT_USER_REQUEST needs to return a User object");
+            }
+            setUserName(mUser.getName());
+            return;
+        }
+
         Fragment fragment
                 = getSupportFragmentManager().findFragmentById(R.id.fragment_placeholder_main);
         if (requestCode == CREATE_MEETING_REQUEST || requestCode == EDIT_MEETING_REQUEST) {
@@ -185,9 +195,19 @@ public class MainActivity extends AppCompatActivity
             }
             if (requestCode == CREATE_MEETING_REQUEST) {
                 showFragment(MeetingFragment.newInstance(meeting, mUser), R.string.title_meeting);
+            } else { // EDIT_MEETING_REQUEST
+                ((MeetingFragment)fragment).set(meeting);
             }
             addToHistory(meeting.getId());
             showHistory();
+        } else if (requestCode == EDIT_AGENDA_ITEM_REQUEST
+                || requestCode == ADD_AGENDA_ITEM_REQUEST) {
+            AgendaItem item = intent.getExtras().getParcelable(EXTRA_AGENDA_ITEM);
+            if (item == null) {
+                throw new IllegalArgumentException(
+                        "EDIT_AGENDA_ITEM_REQUEST and ADD_AGENDA_ITEM_REQUEST need to return an AgendaItem object");
+            }
+            ((MeetingFragment)fragment).updateOrAdd(item);
         }
     }
 
@@ -219,8 +239,14 @@ public class MainActivity extends AppCompatActivity
                 case R.id.nav_about :
                     showAbout();
                     break;
+                case R.id.nav_new_meeting :
+                    onCreateMeeting();
+                    break;
                 case R.id.nav_example :
                     showExampleMeeting();
+                    break;
+                case R.id.nav_edit_user :
+                    editUser();
                     break;
                 case R.id.nav_clear_history:
                     clearHistory();
@@ -243,8 +269,48 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
+    public void onEdit(Meeting meeting) {
+        Intent intent = new Intent(this, EditActivity.class);
+        intent.putExtra(EXTRA_MEETING, meeting);
+        intent.putExtra(EXTRA_USER, mUser);
+        intent.setType(Meeting.CONTENT_TYPE);
+        intent.setAction(ACTION_EDIT_MEETING);
+        startActivityForResult(intent, EDIT_MEETING_REQUEST);
+    }
+
+    @Override
+    public void onEdit(AgendaItem item, Meeting meeting) {
+        Intent intent = new Intent(this, EditActivity.class);
+        intent.putExtra(EXTRA_AGENDA_ITEM, item);
+        intent.putExtra(EXTRA_MEETING, meeting);
+        intent.putExtra(EXTRA_USER, mUser);
+        intent.setType(AgendaItem.CONTENT_TYPE);
+        intent.setAction(ACTION_EDIT_AGENDA_ITEM);
+        startActivityForResult(intent, EDIT_AGENDA_ITEM_REQUEST);
+    }
+
+    @Override
+    public void onAddAgendaItem(Meeting meeting) {
+        Intent intent = new Intent(this, EditActivity.class);
+        intent.putExtra(EXTRA_MEETING, meeting);
+        intent.putExtra(EXTRA_USER, mUser);
+        intent.setType(AgendaItem.CONTENT_TYPE);
+        intent.setAction(ACTION_ADD_AGENDA_ITEM);
+        startActivityForResult(intent, ADD_AGENDA_ITEM_REQUEST);
+    }
+
+    @Override
     public void onViewExample() {
         showExampleMeeting();
+    }
+
+    @Override
+    public void onCreateMeeting() {
+        Intent intent = new Intent(this, EditActivity.class);
+        intent.putExtra(EXTRA_USER, mUser);
+        intent.setType(Meeting.CONTENT_TYPE);
+        intent.setAction(ACTION_CREATE_MEETING);
+        startActivityForResult(intent, CREATE_MEETING_REQUEST);
     }
 
     @Override
@@ -423,6 +489,14 @@ public class MainActivity extends AppCompatActivity
             return;
         }
         showFragment(AboutFragment.newInstance(), R.string.title_about);
+    }
+
+    private void editUser() {
+        Intent intent = new Intent(this, EditActivity.class);
+        intent.putExtra(EXTRA_USER, mUser);
+        intent.setType(User.CONTENT_TYPE);
+        intent.setAction(ACTION_EDIT_USER);
+        startActivityForResult(intent, EDIT_USER_REQUEST);
     }
 
     private void clearHistory() {
