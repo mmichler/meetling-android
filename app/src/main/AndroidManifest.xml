@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest package="app.meetling"
+          xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/MeetlingTheme">
+        <activity
+            android:name="app.meetling.ui.MainActivity"
+            android:label="@string/app_name"
+
+            android:theme="@style/MeetlingTheme.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+
+                <data
+                    android:host="meetling.org"
+                    android:scheme="https"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+
+                <category android:name="android.intent.category.DEFAULT"/>
+
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".ui.edit.EditActivity"
+            android:parentActivityName="app.meetling.ui.MainActivity"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            android:theme="@style/MeetlingTheme.NoActionBar">
+        </activity>
+    </application>
+
+</manifest>

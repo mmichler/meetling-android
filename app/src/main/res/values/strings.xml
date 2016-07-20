@@ -1,0 +1,30 @@
+<resources>
+    <string name="app_name">Meetling</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+
+    <string name="action_edit">Edit</string>
+    <string name="action_share">Share</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_cancel">Cancel</string>
+
+    <string name="title_user">User</string>
+    <string name="title_meeting">Meeting</string>
+    <string name="title_about">About</string>
+    <string name="title_agenda">Agenda</string>
+    <string name="title_agenda_item">Agenda Item</string>
+    <string name="title_items">Agenda</string>
+    <string name="title_items_trash">Trash</string>
+
+    <string name="error_input_mandatory">This field is mandatory</string>
+
+    <string name="toast_title_empty">Field \"Title\" may not be empty</string>
+    <string name="toast_name_empty">Field \"Name\" may not be empty</string>
+
+    <string name="about_this_app">This app is a client for meetling.org</string>
+    <string name="about_license">
+        It is open source software and released under the MIT license.
+        The project is hosted at github.com/mmichler/meetling-android
+    </string>
+    <string name="about_copyright">Copyright © 2016 Markus Michler</string>
+</resources>
