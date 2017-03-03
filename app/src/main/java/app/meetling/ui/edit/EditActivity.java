@@ -200,7 +200,7 @@ public class EditActivity extends AppCompatActivity implements EditMeetingFragme
     public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
         EditMeetingFragment fragment
                 = (EditMeetingFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.fragment_placeholder_edit);
+                        .findFragmentById(R.id.fragment_placeholder_edit);
         fragment.setDate(year, monthOfYear, dayOfMonth);
     }
 }
