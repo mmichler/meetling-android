@@ -17,6 +17,8 @@
     <string name="title_items_trash">Trash</string>
 
     <string name="error_input_mandatory">This field is mandatory</string>
+    <string name="error_date_mandatory">Mandatory if time is set</string>
+    <string name="error_time_mandatory">Mandatory if date ist set</string>
 
     <string name="toast_title_empty">Field \"Title\" may not be empty</string>
     <string name="toast_name_empty">Field \"Name\" may not be empty</string>

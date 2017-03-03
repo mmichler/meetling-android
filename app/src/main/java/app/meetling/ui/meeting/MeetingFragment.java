@@ -318,10 +318,12 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
         DateFormat timeFormat = android.text.format.DateFormat.getTimeFormat(getContext());
         DateFormat longDateFormat = android.text.format.DateFormat.getLongDateFormat(getContext());
 
+        TextView meetingDate = (TextView) getActivity().findViewById(R.id.meeting_date);
         if (date != null) {
-            ((TextView) getActivity().findViewById(R.id.meeting_date))
-                    .setText(String.format("%s, %s", longDateFormat.format(date),
-                            timeFormat.format(date)));
+            meetingDate.setText(String.format("%s, %s", longDateFormat.format(date),
+                    timeFormat.format(date)));
+        } else {
+            meetingDate.setText(null);
         }
         ((TextView) getActivity().findViewById(R.id.meeting_location))
                 .setText(mMeeting.getLocation());

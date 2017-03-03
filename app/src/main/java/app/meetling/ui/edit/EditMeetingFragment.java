@@ -25,6 +25,8 @@ import static app.meetling.io.Meeting.EXTRA_MEETING;
  * Fragment for editing Meetings.
  */
 public class EditMeetingFragment extends EditFragment<EditMeetingFragment.Callback> {
+    private boolean mDateSet;
+    private boolean mTimeSet;
     private Meeting mMeeting;
     private Calendar mCalendar;
     private TextInputEditText mInputTitle;
@@ -73,13 +75,12 @@ public class EditMeetingFragment extends EditFragment<EditMeetingFragment.Callba
         mInputTitle.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                if (!hasFocus) {
+                if (!hasFocus && EditMeetingFragment.this.isResumed()) {
                     if (mInputTitle.getText().toString().trim().isEmpty()) {
                         inputLayoutTitle.setError(getString(R.string.error_input_mandatory));
                     } else {
                         inputLayoutTitle.setError(null);
                     }
-                    inputLayoutTitle.setErrorEnabled(mInputTitle.getText().toString().trim().isEmpty());
                 } else {
                     // otherwise the hint text of mInputTitle won't be shown
                     getActivity().findViewById(R.id.nested_scrollview).scrollTo(0, 0);
@@ -104,8 +105,9 @@ public class EditMeetingFragment extends EditFragment<EditMeetingFragment.Callba
                 return false;
             }
         });
-        ImageButton actionDate = (ImageButton) getActivity().findViewById(R.id.action_date);
-        actionDate.setOnClickListener(new View.OnClickListener() {
+
+        ImageButton actionPickDate = (ImageButton) getActivity().findViewById(R.id.action_pick_date);
+        actionPickDate.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (mCalendar == null) {
@@ -121,8 +123,9 @@ public class EditMeetingFragment extends EditFragment<EditMeetingFragment.Callba
                 mInputDate.requestFocus();
             }
         });
-        ImageButton actionTime = (ImageButton) getActivity().findViewById(R.id.action_time);
-        actionTime.setOnClickListener(new View.OnClickListener() {
+
+        ImageButton actionPickTime = (ImageButton) getActivity().findViewById(R.id.action_pick_time);
+        actionPickTime.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (mCalendar == null) {
@@ -137,6 +140,33 @@ public class EditMeetingFragment extends EditFragment<EditMeetingFragment.Callba
                 mInputTime.requestFocus();
             }
         });
+
+        ImageButton actionClearDate = (ImageButton) getActivity().findViewById(R.id.action_clear_date);
+        actionClearDate.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mDateSet = false;
+                if (!mTimeSet) {
+                    mCalendar = null;
+                }
+                updateDateTimeFields();
+                checkForIncompleteDateTime();
+            }
+        });
+
+        ImageButton actionClearTime = (ImageButton) getActivity().findViewById(R.id.action_clear_time);
+        actionClearTime.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                mTimeSet = false;
+                if (!mDateSet) {
+                    mCalendar = null;
+                }
+                updateDateTimeFields();
+                checkForIncompleteDateTime();
+            }
+        });
+
         mInputLocation = (TextInputEditText) getActivity().findViewById(R.id.input_location);
         mInputDescription = (TextInputEditText) getActivity().findViewById(R.id.input_description);
 
@@ -146,6 +176,8 @@ public class EditMeetingFragment extends EditFragment<EditMeetingFragment.Callba
         if (mMeeting.getDate() != null) {
             mCalendar = Calendar.getInstance();
             mCalendar.setTime(mMeeting.getDate());
+            mDateSet = true;
+            mTimeSet = true;
             updateDateTimeFields();
         }
         mInputTitle.setText(mMeeting.getTitle());
@@ -162,7 +194,7 @@ public class EditMeetingFragment extends EditFragment<EditMeetingFragment.Callba
                     Snackbar.make(
                             getActivity().findViewById(R.id.edit_meeting_layout),
                             R.string.toast_title_empty, Snackbar.LENGTH_LONG).show();
-                } else {
+                } else if (mDateSet == mTimeSet) {
                     String title = mInputTitle.getText().toString();
                     Date date = mCalendar == null ? null : mCalendar.getTime();
                     String location = mInputLocation.getText().toString();
@@ -185,26 +217,58 @@ public class EditMeetingFragment extends EditFragment<EditMeetingFragment.Callba
         mCalendar.set(Calendar.YEAR, year);
         mCalendar.set(Calendar.MONTH, month);
         mCalendar.set(Calendar.DAY_OF_MONTH, day);
+        mDateSet = true;
         updateDateTimeFields();
+        checkForIncompleteDateTime();
     }
 
     public void setTime(int hour, int minute) {
         mCalendar.set(Calendar.HOUR_OF_DAY, hour);
         mCalendar.set(Calendar.MINUTE, minute);
+        mTimeSet = true;
         updateDateTimeFields();
+        checkForIncompleteDateTime();
     }
 
     private void updateDateTimeFields() {
         DateFormat dateDisplayFormat = android.text.format.DateFormat.getDateFormat(getContext());
         DateFormat timeDisplayFormat = android.text.format.DateFormat.getTimeFormat(getContext());
-        mInputDate.setText(dateDisplayFormat.format(mCalendar.getTime()));
-        mInputTime.setText(timeDisplayFormat.format(mCalendar.getTime()));
+        if (mDateSet) {
+            mInputDate.setText(dateDisplayFormat.format(mCalendar.getTime()));
+        } else {
+            mInputDate.setText(null);
+        }
+        if (mTimeSet) {
+            mInputTime.setText(timeDisplayFormat.format(mCalendar.getTime()));
+        } else {
+            mInputTime.setText(null);
+        }
     }
 
     private void hideSoftKeyboard() {
         InputMethodManager imm
                 = (InputMethodManager) getActivity().getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(mInputTitle.getWindowToken(), 0);
+    }
+
+    private void checkForIncompleteDateTime() {
+        TextInputLayout inputLayoutDate
+                = (TextInputLayout) getActivity().findViewById(R.id.input_layout_date);
+        TextInputLayout inputLayoutTime
+                = (TextInputLayout) getActivity().findViewById(R.id.input_layout_time);
+        if (mDateSet == mTimeSet) {
+            inputLayoutDate.setError(null);
+            inputLayoutTime.setError(null);
+            return;
+        }
+
+        if (mTimeSet) {
+            inputLayoutDate.setError(getString(R.string.error_date_mandatory));
+        }
+
+        if (mDateSet) {
+            inputLayoutTime.setError(getString(R.string.error_time_mandatory));
+        }
     }
 
     public interface Callback extends EditFragment.Callback {
