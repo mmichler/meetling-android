@@ -84,14 +84,12 @@ public class EditItemFragment extends EditFragment<EditItemFragment.Callback> {
         mInputTitle.setOnFocusChangeListener(new View.OnFocusChangeListener() {
             @Override
             public void onFocusChange(View v, boolean hasFocus) {
-                if (!hasFocus) {
+                if (!hasFocus && EditItemFragment.this.isResumed()) {
                     if (mInputTitle.getText().toString().trim().isEmpty()) {
                         inputLayoutTitle.setError(getString(R.string.error_input_mandatory));
                     } else {
                         inputLayoutTitle.setError(null);
                     }
-                    inputLayoutTitle.setErrorEnabled(
-                            mInputTitle.getText().toString().trim().isEmpty());
                 } else {
                     // otherwise the hint text of mInputTitle won't be shown
                     getActivity().findViewById(R.id.nested_scrollview).scrollTo(0, 0);

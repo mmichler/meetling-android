@@ -11,50 +11,90 @@
         android:fitsSystemWindows="true"
         android:theme="@style/AppTheme.AppBarOverlay">
 
-        <!-- Wrapper Needed because the snap flag, when applied to the fragment itself will stop the
-         scroll at layout_marginTop -->
-        <FrameLayout
+
+
+        <android.support.design.widget.CollapsingToolbarLayout
+            android:id="@+id/toolbar_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:layout_scrollFlags="scroll|snap">
+            android:fitsSystemWindows="true"
+            app:contentScrim="?attr/colorPrimary"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            app:toolbarId="@+id/toolbar"
+            >
+
+
+
+
+            <!-- Wrapper Needed because the snap flag, when applied to the fragment itself will stop the
+scroll at layout_marginTop -->
+            <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_scrollFlags="scroll|snap"
+            >
 
             <include layout="@layout/meeting_header"
+                     android:layout_width="match_parent"
+                     android:layout_height="wrap_content"
+                     android:layout_marginTop="?attr/actionBarSize"
+                     android:layout_marginLeft="8dp"
+                     android:layout_marginRight="8dp"
+                     android:theme="@style/MeetlingTheme"
+                     android:fitsSystemWindows="true"
+                     app:layout_collapseMode="pin"
+                     />
+
+
+            </FrameLayout>
+
+
+
+            <android.support.v7.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="?attr/colorPrimary"
+                app:title="@string/title_agenda"
+                app:layout_collapseMode="pin">
+                <!--app:popupTheme="@style/AppTheme.PopupOverlay"-->
+
+
+                <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginLeft="8dp"
-                android:layout_marginRight="8dp"
-                android:theme="@style/MeetlingTheme"/>
+                android:lines="1"
+                android:ellipsize="end"
+                style="@style/TextAppearance.AppCompat.Widget.ActionBar.Title"
+                android:text="Meeting title looooooooooooong"/>
 
-        </FrameLayout>
+            </android.support.v7.widget.Toolbar>
 
-        <android.support.v7.widget.Toolbar
-            android:id="@+id/toolbar"
+
+        </android.support.design.widget.CollapsingToolbarLayout>
+
+
+
+
+
+
+        <android.support.design.widget.TabLayout
+            android:id="@+id/tab_layout"
+            android:layout_height="wrap_content"
             android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
-            app:title="@string/title_agenda"
-            app:popupTheme="@style/AppTheme.PopupOverlay">
+            app:tabIndicatorColor="?attr/actionMenuTextColor">
 
-            <android.support.design.widget.TabLayout
-                android:id="@+id/tab_layout"
+            <android.support.design.widget.TabItem
                 android:layout_height="wrap_content"
-                android:layout_width="match_parent"
-                app:tabIndicatorColor="?attr/actionMenuTextColor">
+                android:layout_width="wrap_content"
+                android:text="@string/title_items"/>
 
-                <android.support.design.widget.TabItem
-                    android:layout_height="wrap_content"
-                    android:layout_width="wrap_content"
-                    android:text="@string/title_items"/>
+            <android.support.design.widget.TabItem
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:text="@string/title_items_trash"/>
 
-                <android.support.design.widget.TabItem
-                    android:layout_height="wrap_content"
-                    android:layout_width="wrap_content"
-                    android:text="@string/title_items_trash"/>
-
-            </android.support.design.widget.TabLayout>
-
-        </android.support.v7.widget.Toolbar>
+        </android.support.design.widget.TabLayout>
 
     </android.support.design.widget.AppBarLayout>
 
