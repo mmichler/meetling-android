@@ -56,14 +56,13 @@
             android:id="@+id/input_layout_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingTop="0dp"
             app:errorEnabled="true">
 
             <android.support.design.widget.TextInputEditText
                 android:id="@+id/input_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textCapSentences"
+                android:inputType="textCapSentences|textMultiLine"
                 android:hint="Title" />
 
         </android.support.design.widget.TextInputLayout>
@@ -179,7 +178,7 @@
                 android:id="@+id/input_location"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textCapSentences"
+                android:inputType="textCapSentences|textMultiLine"
                 android:hint="Location" />
 
         </android.support.design.widget.TextInputLayout>
@@ -193,7 +192,7 @@
                 android:id="@+id/input_description"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="textCapSentences"
+                android:inputType="textCapSentences|textMultiLine"
                 android:hint="Description" />
 
         </android.support.design.widget.TextInputLayout>
