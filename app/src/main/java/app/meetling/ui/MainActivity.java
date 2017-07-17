@@ -5,9 +5,11 @@ import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.StringRes;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v4.util.Pair;
 import android.support.v4.view.GravityCompat;
@@ -30,11 +32,10 @@ import app.meetling.io.Then;
 import app.meetling.io.Then.Callback;
 import app.meetling.io.User;
 import app.meetling.io.WebApi;
-import app.meetling.ui.edit.EditActivity;
+import app.meetling.ui.edit.EditMeetingDialog;
+import app.meetling.ui.edit.EditUserDialog;
 import app.meetling.ui.meeting.MeetingFragment;
 
-import static app.meetling.io.AgendaItem.EXTRA_AGENDA_ITEM;
-import static app.meetling.io.Meeting.EXTRA_MEETING;
 import static app.meetling.io.User.EXTRA_USER;
 
 /**
@@ -43,17 +44,7 @@ import static app.meetling.io.User.EXTRA_USER;
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, MeetingFragment.Callback,
         GreeterFragment.Callback {
-    public static final String ACTION_EDIT_USER = "meetling.intent.action.ACTION_EDIT_USER";
-    public static final String ACTION_CREATE_MEETING = "meetling.intent.action.CREATE_MEETING";
-    public static final String ACTION_EDIT_MEETING = "meetling.intent.action.EDIT_MEETING";
-    public static final String ACTION_ADD_AGENDA_ITEM = "meetling.intent.action.ADD_AGENDA_ITEM";
-    public static final String ACTION_EDIT_AGENDA_ITEM = "meetling.intent.action.EDIT_AGENDA_ITEM";
     private static final String HISTORY = "history";
-    private static final int CREATE_MEETING_REQUEST = 0;
-    private static final int EDIT_MEETING_REQUEST = 1;
-    private static final int EDIT_AGENDA_ITEM_REQUEST = 2;
-    private static final int ADD_AGENDA_ITEM_REQUEST = 3;
-    private static final int EDIT_USER_REQUEST = 4;
     private WebApi mApi;
     private User mUser;
     private LocalStorage mStorage;
@@ -113,7 +104,6 @@ public class MainActivity extends AppCompatActivity
         if (savedInstanceState != null) {
             mUser = savedInstanceState.getParcelable(EXTRA_USER);
             mHistory = savedInstanceState.getStringArrayList(HISTORY);
-
             populateDrawerMenu();
         } else {
 
@@ -122,6 +112,7 @@ public class MainActivity extends AppCompatActivity
                 public void call(User user) {
                     mUser = user;
                     populateDrawerMenu();
+                    showUser();
                     handleIntent();
                 }
             };
@@ -168,50 +159,6 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        super.onActivityResult(requestCode, resultCode, intent);
-
-        if (resultCode != RESULT_OK) {
-            return;
-        }
-
-        if (requestCode == EDIT_USER_REQUEST) {
-            mUser = intent.getExtras().getParcelable(EXTRA_USER);
-            if (mUser == null) {
-                throw new IllegalArgumentException(
-                        "EDIT_USER_REQUEST needs to return a User object");
-            }
-            setUserName(mUser.getName());
-            return;
-        }
-
-        Fragment fragment
-                = getSupportFragmentManager().findFragmentById(R.id.fragment_placeholder_main);
-        if (requestCode == CREATE_MEETING_REQUEST || requestCode == EDIT_MEETING_REQUEST) {
-            Meeting meeting = intent.getExtras().getParcelable(EXTRA_MEETING);
-            if (meeting == null) {
-                throw new IllegalArgumentException(
-                        "CREATE_MEETING_REQUEST and EDIT_MEETING_REQUEST need to return a Meeting object");
-            }
-            if (requestCode == CREATE_MEETING_REQUEST) {
-                showFragment(MeetingFragment.newInstance(meeting, mUser), R.string.title_meeting);
-            } else { // EDIT_MEETING_REQUEST
-                ((MeetingFragment)fragment).set(meeting);
-            }
-            addToHistory(meeting.getId());
-            showHistory();
-        } else if (requestCode == EDIT_AGENDA_ITEM_REQUEST
-                || requestCode == ADD_AGENDA_ITEM_REQUEST) {
-            AgendaItem item = intent.getExtras().getParcelable(EXTRA_AGENDA_ITEM);
-            if (item == null) {
-                throw new IllegalArgumentException(
-                        "EDIT_AGENDA_ITEM_REQUEST and ADD_AGENDA_ITEM_REQUEST need to return an AgendaItem object");
-            }
-            ((MeetingFragment)fragment).updateOrAdd(item);
-        }
-    }
-
-    @Override
     public void onBackPressed() {
         if (mDrawerLayout.isDrawerOpen(GravityCompat.START)) {
             mDrawerLayout.closeDrawer(GravityCompat.START);
@@ -246,7 +193,14 @@ public class MainActivity extends AppCompatActivity
                     showExampleMeeting();
                     break;
                 case R.id.nav_edit_user :
-                    editUser();
+                    // FIXME proof of concept, better: use onDrawerClosed() callback of DrawerLayout.DrawerListener
+                    new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        editUser();
+                    }
+                }, 230);
+
                     break;
                 case R.id.nav_clear_history:
                     clearHistory();
@@ -256,6 +210,43 @@ public class MainActivity extends AppCompatActivity
 
         mDrawerLayout.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    public void addToHistory(String meetingId) {
+        mHistory.remove(meetingId);
+        mHistory.add(0, meetingId);
+    }
+
+    public void showHistory() {
+        mNavigationView.getMenu().findItem(R.id.nav_history).getSubMenu().clear();
+        if (mHistory.isEmpty()) {
+            return;
+        }
+
+        mNavigationView.getMenu().findItem(R.id.nav_clear_history).setVisible(true);
+
+        Then.Callback<Meeting> addMeetingToHistoryMenu = new Then.Callback<Meeting>() {
+            @Override
+            public void call(Meeting meeting) {
+                int index = mHistory.indexOf(meeting.getId());
+                MenuItem historyMenu = mNavigationView.getMenu().findItem(R.id.nav_history);
+                if (historyMenu.getSubMenu().findItem(index) == null) {
+                    historyMenu.getSubMenu().add(
+                            R.id.nav_history, index, index, meeting.getTitle());
+                }
+            }
+        };
+
+        // TODO traffic intensive in long histories; cache meeting titles?
+        for (String id : mHistory) {
+            mApi.getMeeting(id, mUser).then(addMeetingToHistoryMenu);
+        }
+    }
+
+    public void showMeeting(Meeting meeting) {
+        showFragment(
+                MeetingFragment.newInstance(
+                        meeting, mUser, mApi.getHost()), R.string.title_meeting);
     }
 
     /*
@@ -269,48 +260,18 @@ public class MainActivity extends AppCompatActivity
     }
 
     @Override
-    public void onEdit(Meeting meeting) {
-        Intent intent = new Intent(this, EditActivity.class);
-        intent.putExtra(EXTRA_MEETING, meeting);
-        intent.putExtra(EXTRA_USER, mUser);
-        intent.setType(Meeting.CONTENT_TYPE);
-        intent.setAction(ACTION_EDIT_MEETING);
-        startActivityForResult(intent, EDIT_MEETING_REQUEST);
-    }
-
-    @Override
-    public void onEdit(AgendaItem item, Meeting meeting) {
-        Intent intent = new Intent(this, EditActivity.class);
-        intent.putExtra(EXTRA_AGENDA_ITEM, item);
-        intent.putExtra(EXTRA_MEETING, meeting);
-        intent.putExtra(EXTRA_USER, mUser);
-        intent.setType(AgendaItem.CONTENT_TYPE);
-        intent.setAction(ACTION_EDIT_AGENDA_ITEM);
-        startActivityForResult(intent, EDIT_AGENDA_ITEM_REQUEST);
-    }
-
-    @Override
-    public void onAddAgendaItem(Meeting meeting) {
-        Intent intent = new Intent(this, EditActivity.class);
-        intent.putExtra(EXTRA_MEETING, meeting);
-        intent.putExtra(EXTRA_USER, mUser);
-        intent.setType(AgendaItem.CONTENT_TYPE);
-        intent.setAction(ACTION_ADD_AGENDA_ITEM);
-        startActivityForResult(intent, ADD_AGENDA_ITEM_REQUEST);
-    }
-
-    @Override
     public void onViewExample() {
         showExampleMeeting();
     }
 
     @Override
     public void onCreateMeeting() {
-        Intent intent = new Intent(this, EditActivity.class);
-        intent.putExtra(EXTRA_USER, mUser);
-        intent.setType(Meeting.CONTENT_TYPE);
-        intent.setAction(ACTION_CREATE_MEETING);
-        startActivityForResult(intent, CREATE_MEETING_REQUEST);
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        EditMeetingDialog editMeetingDialog =
+                EditMeetingDialog.newInstance(mUser, mApi.getHost());
+        editMeetingDialog.setTargetFragment(fragmentManager.findFragmentById(R.id
+                .fragment_placeholder_main), 300);
+        editMeetingDialog.show(fragmentManager, "dialog_edit_meeting");
     }
 
     @Override
@@ -335,10 +296,6 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void populateDrawerMenu() {
-        // user
-        setUserName(mUser.getName());
-        mNavigationView.getMenu().findItem(R.id.nav_edit_user).setEnabled(true);
-
         // add stored history
         mStorage.getHistory().then(new Callback<List<String>>() {
             @Override
@@ -353,9 +310,10 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
-    private void setUserName(String userName) {
-        ((TextView) mNavigationView.getHeaderView(0)
-                .findViewById(R.id.user_name)).setText(userName);
+    private void showUser() {
+        // user
+        ((TextView) findViewById(R.id.user_name)).setText(mUser.getName());
+        mNavigationView.getMenu().findItem(R.id.nav_edit_user).setEnabled(true);
     }
 
     private void handleIntent() {
@@ -461,7 +419,7 @@ public class MainActivity extends AppCompatActivity
 
     private void showMeeting(Meeting meeting, List<AgendaItem> items, List<AgendaItem> trash) {
         MeetingFragment meetingFragment
-                = MeetingFragment.newInstance(meeting, items, trash, mUser);
+                = MeetingFragment.newInstance(meeting, items, trash, mUser, mApi.getHost());
         showFragment(meetingFragment, R.string.title_meeting);
         addToHistory(meeting.getId());
         showHistory();
@@ -492,11 +450,12 @@ public class MainActivity extends AppCompatActivity
     }
 
     private void editUser() {
-        Intent intent = new Intent(this, EditActivity.class);
-        intent.putExtra(EXTRA_USER, mUser);
-        intent.setType(User.CONTENT_TYPE);
-        intent.setAction(ACTION_EDIT_USER);
-        startActivityForResult(intent, EDIT_USER_REQUEST);
+        Fragment currentFragment = getSupportFragmentManager()
+                .findFragmentById(R.id.fragment_placeholder_main);
+        EditUserDialog editUserDialog = EditUserDialog.newInstance(mUser, mApi.getHost());
+        editUserDialog.setTargetFragment(currentFragment, 300);
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        editUserDialog.show(fragmentManager, "dialog_edit_user");
     }
 
     private void clearHistory() {
@@ -504,36 +463,5 @@ public class MainActivity extends AppCompatActivity
         mNavigationView.getMenu().findItem(R.id.nav_clear_history).setVisible(false);
 
         showHistory();
-    }
-
-    private void addToHistory(String meetingId) {
-        mHistory.remove(meetingId);
-        mHistory.add(0, meetingId);
-    }
-
-    private void showHistory() {
-        mNavigationView.getMenu().findItem(R.id.nav_history).getSubMenu().clear();
-        if (mHistory.isEmpty()) {
-            return;
-        }
-
-        mNavigationView.getMenu().findItem(R.id.nav_clear_history).setVisible(true);
-
-        Then.Callback<Meeting> addMeetingToHistoryMenu = new Then.Callback<Meeting>() {
-            @Override
-            public void call(Meeting meeting) {
-                int index = mHistory.indexOf(meeting.getId());
-                MenuItem historyMenu = mNavigationView.getMenu().findItem(R.id.nav_history);
-                if (historyMenu.getSubMenu().findItem(index) == null) {
-                    historyMenu.getSubMenu().add(
-                            R.id.nav_history, index, index, meeting.getTitle());
-                }
-            }
-        };
-
-        // TODO traffic intensive in long histories; cache meeting titles?
-        for (String id : mHistory) {
-            mApi.getMeeting(id, mUser).then(addMeetingToHistoryMenu);
-        }
     }
 }

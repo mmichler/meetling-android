@@ -33,6 +33,8 @@ import javax.net.ssl.HttpsURLConnection;
  */
 // TODO decide whether methods take objects or ids/authSecrets
 public class WebApi {
+    public static final String EXTRA_API_HOST = "api_host";
+
     private String mHost;
 
     public WebApi(String host) {
@@ -677,6 +679,10 @@ public class WebApi {
         }
 
         return response;
+    }
+
+    public String getHost() {
+        return mHost;
     }
 
     private Object readStream(HttpsURLConnection urlConnection) throws IOException {
