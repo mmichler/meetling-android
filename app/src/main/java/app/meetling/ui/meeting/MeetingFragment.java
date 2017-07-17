@@ -6,9 +6,9 @@ import android.content.ClipboardManager;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.TabLayout;
+import android.support.v4.app.FragmentManager;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.SimpleItemAnimator;
@@ -31,15 +31,20 @@ import app.meetling.io.AgendaItem;
 import app.meetling.io.Meeting;
 import app.meetling.io.User;
 import app.meetling.io.WebApi;
+import app.meetling.ui.MainActivity;
 import app.meetling.ui.NavigationFragment;
+import app.meetling.ui.edit.EditItemDialog;
+import app.meetling.ui.edit.EditMeetingDialog;
 
 import static app.meetling.io.Meeting.EXTRA_MEETING;
 import static app.meetling.io.User.EXTRA_USER;
+import static app.meetling.io.WebApi.EXTRA_API_HOST;
 
 /**
  * Fragment that displays the a meeting's data.
  */
-public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback> {
+public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback>
+        implements EditMeetingDialog.Listener, EditItemDialog.Listener {
     private static final String ITEMS = "items";
     private static final String TRASHED_ITEMS = "trashed_items";
     private User mUser;
@@ -53,22 +58,41 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
     private FloatingActionButton mFabRestore;
     private boolean mItemMoved;
 
+    @Override
+    public void onEdited(Meeting meeting) {
+        set(meeting);
+
+        MainActivity mainActivity = (MainActivity) getActivity();
+        mainActivity.addToHistory(meeting.getId());
+        mainActivity.showHistory();
+    }
+
+    @Override
+    public void onEdited(AgendaItem item) {
+        int index = mItemAdapter.put(item);
+        mRecyclerView.scrollToPosition(index);
+    }
+
     enum Direction {
         UP, DOWN
     }
 
-    public static MeetingFragment newInstance(Meeting meeting, User user) {
-        return newInstance(meeting, new ArrayList<AgendaItem>(), new ArrayList<AgendaItem>(), user);
+    public static MeetingFragment newInstance(Meeting meeting, User user, String host) {
+        return newInstance(
+                meeting, new ArrayList<AgendaItem>(), new ArrayList<AgendaItem>(), user, host);
     }
 
     public static MeetingFragment newInstance(
-            Meeting meeting, List<AgendaItem> items, List<AgendaItem> trashedItems, User user) {
+            Meeting meeting, List<AgendaItem> items, List<AgendaItem> trashedItems, User user,
+            String host) {
         MeetingFragment fragment = new MeetingFragment();
         Bundle args = new Bundle();
         args.putParcelable(EXTRA_MEETING, meeting);
         args.putParcelableArrayList(ITEMS, new ArrayList<Parcelable>(items));
         args.putParcelableArrayList(TRASHED_ITEMS, new ArrayList<Parcelable>(trashedItems));
         args.putParcelable(EXTRA_USER, user);
+        args.putString(EXTRA_API_HOST, host);
+
         fragment.setArguments(args);
         return fragment;
     }
@@ -110,7 +134,12 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
             public boolean onMenuItemClick(MenuItem item) {
                 switch (item.getItemId()) {
                     case R.id.action_edit :
-                        mCallback.onEdit(mMeeting);
+                        FragmentManager fragmentManager = getFragmentManager();
+                        EditMeetingDialog editMeetingDialog =
+                                EditMeetingDialog.newInstance(
+                                        mMeeting, mUser, getArguments().getString(EXTRA_API_HOST));
+                        editMeetingDialog.setTargetFragment(MeetingFragment.this, 300);
+                        editMeetingDialog.show(fragmentManager, "dialog_edit_meeting");
                         return true;
                     case R.id.action_share :
                         ClipboardManager clipboard
@@ -145,24 +174,27 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
         mFabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-               mCallback.onAddAgendaItem(mMeeting);
+                FragmentManager fragmentManager = getFragmentManager();
+                EditItemDialog editItemDialog =
+                        EditItemDialog.newInstance(
+                                null, mMeeting, mUser, getArguments().getString(EXTRA_API_HOST));
+                editItemDialog.setTargetFragment(MeetingFragment.this, 300);
+                editItemDialog.show(fragmentManager, "dialog_edit_item");
             }
         });
         mFabEdit = (FloatingActionButton) getActivity().findViewById(R.id.fab_edit);
-        mFabEdit.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                mCallback.onEdit(mItemAdapter.getActiveItem(), mMeeting);
-            }
+        mFabEdit.setOnClickListener(v -> {
+            FragmentManager fragmentManager = getFragmentManager();
+            EditItemDialog editItemDialog =
+                    EditItemDialog.newInstance(
+                            mItemAdapter.getActiveItem(), mMeeting, mUser,
+                            getArguments().getString(EXTRA_API_HOST));
+            editItemDialog.setTargetFragment(MeetingFragment.this, 300);
+            editItemDialog.show(fragmentManager, "dialog_edit_item");
         });
 
         mFabRestore = (FloatingActionButton) getActivity().findViewById(R.id.fab_restore);
-        mFabRestore.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                restoreAgendaItem(mTrashedItemAdapter.getActiveItem());
-            }
-        });
+        mFabRestore.setOnClickListener(v -> restoreAgendaItem(mTrashedItemAdapter.getActiveItem()));
 
         TabLayout tabLayout = (TabLayout) getActivity().findViewById(R.id.tab_layout);
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
@@ -188,11 +220,6 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
     public void set(Meeting meeting) {
         mMeeting = meeting;
         displayMeetingHeader();
-    }
-
-    public void updateOrAdd(@NonNull AgendaItem item) {
-        int index = mItemAdapter.put(item);
-        mRecyclerView.scrollToPosition(index);
     }
 
     void trashAgendaItem(int pos) {
@@ -347,8 +374,5 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
 
     public interface Callback extends NavigationFragment.Callback {
         void onRefresh(Meeting meeting);
-        void onEdit(Meeting meeting);
-        void onEdit(AgendaItem item, Meeting meeting);
-        void onAddAgendaItem(Meeting meeting);
     }
 }

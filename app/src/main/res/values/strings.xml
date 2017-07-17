@@ -7,6 +7,7 @@
     <string name="action_share">Share</string>
     <string name="action_refresh">Refresh</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
 
     <string name="title_user">User</string>
     <string name="title_meeting">Meeting</string>
@@ -20,8 +21,13 @@
     <string name="error_date_mandatory">Mandatory if time is set</string>
     <string name="error_time_mandatory">Mandatory if date ist set</string>
 
-    <string name="toast_title_empty">Field \"Title\" may not be empty</string>
-    <string name="toast_name_empty">Field \"Name\" may not be empty</string>
+    <string name="toast_title_empty"><i>Title</i> may not be empty</string>
+    <string name="toast_name_empty"><i>Name</i> may not be empty</string>
+    <string name="toast_date_time_not_set">Date and time need to be both set or empty</string>
+
+    <string name="dialog_discard_message">Discard changes?</string>
+    <string name="dialog_discard_affirmative">Yes</string>
+    <string name="dialog_discard_negative">No</string>
 
     <string name="about_this_app">This app is a client for meetling.org</string>
     <string name="about_license">
