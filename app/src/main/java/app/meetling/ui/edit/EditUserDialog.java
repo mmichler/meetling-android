@@ -14,9 +14,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import app.meetling.R;
 import app.meetling.io.Then;
 import app.meetling.io.User;

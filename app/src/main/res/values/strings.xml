@@ -35,4 +35,6 @@
         The project is hosted at github.com/mmichler/meetling-android
     </string>
     <string name="about_copyright">Copyright © 2016 Markus Michler</string>
+
+    <string name="caption_date_switch">Set Date</string>
 </resources>
