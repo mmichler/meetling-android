@@ -8,9 +8,12 @@ import android.support.design.widget.TextInputLayout;
 import android.support.v7.app.AlertDialog;
 import android.text.TextWatcher;
 import android.view.WindowManager;
+import android.widget.TextView;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import app.meetling.R;
 
@@ -50,7 +53,7 @@ class DialogUtil {
     }
 
     static class PromptOnChangesDialog extends Dialog {
-        private Map<TextInputEditText, String> mInitialValues;
+        private Map<TextView, String> mInitialValues;
 
         public PromptOnChangesDialog(@NonNull Context context) {
             super(context, R.style.MeetlingDialog);
@@ -59,7 +62,7 @@ class DialogUtil {
             getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         }
 
-        public PromptOnChangesDialog watchValue(TextInputEditText input, String initialVal) {
+        public PromptOnChangesDialog watchValue(TextView input, String initialVal) {
             mInitialValues.put(input, initialVal);
             return this;
         }
