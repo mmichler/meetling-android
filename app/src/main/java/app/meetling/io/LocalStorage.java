@@ -1,11 +1,13 @@
 package app.meetling.io;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.AsyncTask;
 import android.support.annotation.NonNull;
+import android.support.v4.content.SharedPreferencesCompat;
 import android.support.v4.util.Pair;
 
 import java.util.ArrayList;
@@ -17,6 +19,7 @@ import java.util.List;
 public class LocalStorage {
     private static final int DATA_MODEL_VERSION = 1;
     private static final String DB_NAME = "meetling";
+    private Context mContext;
     private DbHelper mDbHelper;
     private boolean mInMemory;
 
@@ -25,6 +28,7 @@ public class LocalStorage {
     }
 
     public LocalStorage(Context context, boolean inMemory) {
+        mContext = context;
         mInMemory = inMemory;
         mDbHelper = new DbHelper(context, inMemory ? null : DB_NAME, null, DATA_MODEL_VERSION);
     }
@@ -98,7 +102,106 @@ public class LocalStorage {
         return then;
     }
 
-    // TODO Remove Then<Void>? AsyncTasks are by default executed sequentially anyway
+    public Then<Boolean> setAuthRequestId(String requestId) {
+        Then<Boolean> then = new Then<>();
+
+        class SetAuthRequestIdTask extends AsyncTask<Void, Void, Boolean> {
+
+            @Override
+            protected Boolean doInBackground(Void... params) {
+                SharedPreferences prefs =
+                        mContext.getSharedPreferences("meetling", Context.MODE_PRIVATE);
+                return prefs.edit().putString("auth_request_id", requestId).commit();
+            }
+
+            @Override
+            protected void onPostExecute(Boolean result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new SetAuthRequestIdTask().execute();
+
+        return then;
+    }
+
+    public Then<String> getAuthRequestId() {
+        Then<String> then = new Then<>();
+
+        class SetAuthRequestIdTask extends AsyncTask<Void, Void, String> {
+
+            @Override
+            protected String doInBackground(Void... params) {
+                SharedPreferences prefs =
+                        mContext.getSharedPreferences("meetling", Context.MODE_PRIVATE);
+                return prefs.getString("auth_request_id", null);
+            }
+
+            @Override
+            protected void onPostExecute(String result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new SetAuthRequestIdTask().execute();
+
+        return then;
+    }
+
+    public Then<Boolean> deleteAuthRequestId() {
+        Then<Boolean> then = new Then<>();
+
+        class SetAuthRequestIdTask extends AsyncTask<Void, Void, Boolean> {
+
+            @Override
+            protected Boolean doInBackground(Void... params) {
+                SharedPreferences prefs =
+                        mContext.getSharedPreferences("meetling", Context.MODE_PRIVATE);
+                return prefs.edit().remove("auth_request_id").commit();
+            }
+
+            @Override
+            protected void onPostExecute(Boolean result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new SetAuthRequestIdTask().execute();
+
+        return then;
+    }
+
+    public Then<Boolean> hasAuthRequestId() {
+        Then<Boolean> then = new Then<>();
+
+        class SetAuthRequestIdTask extends AsyncTask<Void, Void, Boolean> {
+
+            @Override
+            protected Boolean doInBackground(Void... params) {
+                SharedPreferences prefs =
+                        mContext.getSharedPreferences("meetling", Context.MODE_PRIVATE);
+                return prefs.contains("auth_request_id");
+            }
+
+            @Override
+            protected void onPostExecute(Boolean result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new SetAuthRequestIdTask().execute();
+
+        return then;
+    }
+
     public Then<Void> setHistory(@NonNull List<String> history) {
         final Then<Void> then = new Then<>();
 

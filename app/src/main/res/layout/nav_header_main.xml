@@ -1,26 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="56dp"
-              android:background="@color/colorPrimary"
-              android:gravity="center_vertical"
-              android:orientation="horizontal"
-              android:paddingBottom="@dimen/nav_content_spacing"
-              android:paddingLeft="16dp"
-              android:paddingRight="@dimen/activity_horizontal_margin"
-              android:paddingTop="@dimen/nav_content_spacing"
-              android:theme="@style/ThemeOverlay.AppCompat.Dark">
-
-    <ImageView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:src="@drawable/ic_account_circle"/>
+        android:background="@color/colorPrimary"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingTop="@dimen/nav_header_vertical_padding"
+        android:paddingBottom="@dimen/nav_header_vertical_padding"
+        android:paddingLeft="@dimen/nav_header_horizontal_padding"
+        android:paddingStart="@dimen/nav_header_horizontal_padding"
+        android:paddingRight="@dimen/nav_header_horizontal_padding"
+        android:paddingEnd="@dimen/nav_header_horizontal_padding"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark">
 
     <TextView
         android:id="@+id/user_name"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-        android:paddingLeft="8dp"
         android:textColor="#FFF"/>
+
+    <TextView
+        android:id="@+id/user_email"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/no_email_set"
+         />
 </LinearLayout>
