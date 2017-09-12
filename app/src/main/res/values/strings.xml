@@ -18,16 +18,18 @@
     <string name="title_items_trash">Trash</string>
 
     <string name="error_input_mandatory">This field is mandatory</string>
-    <string name="error_date_mandatory">Mandatory if time is set</string>
-    <string name="error_time_mandatory">Mandatory if date ist set</string>
+    <string name="error_needs_at_sign">Email address is missing an \'@\'-Sign</string>
+    <string name="error_needs_part_before_at_sign">Email address is missing the part before the \'@\'-Sign</string>
+    <string name="error_needs_part_after_at_sign">Email address is missing the part after the \'@\'-Sign</string>
 
     <string name="toast_title_empty"><i>Title</i> may not be empty</string>
     <string name="toast_name_empty"><i>Name</i> may not be empty</string>
-    <string name="toast_date_time_not_set">Date and time need to be both set or empty</string>
+    <string name="toast_edited_fields_error">There are errors in the edited fields</string>
 
     <string name="dialog_discard_message">Discard changes?</string>
-    <string name="dialog_discard_affirmative">Yes</string>
-    <string name="dialog_discard_negative">No</string>
+    <string name="dialog_discard_affirmative">Discard</string>
+    <string name="dialog_discard_negative">Cancel</string>
+    <string name="dialog_edit_user_name">Edit Username</string>
 
     <string name="about_this_app">This app is a client for meetling.org</string>
     <string name="about_license">
@@ -36,5 +38,19 @@
     </string>
     <string name="about_copyright">Copyright © 2016 Markus Michler</string>
 
-    <string name="caption_date_switch">Set Date</string>
+    <string name="caption_date_switch">Set date</string>
+    <string name="caption_set_email">Set email address</string>
+    <string name="caption_submit_auth_code">Submit authorization code</string>
+    <string name="caption_help_email" >After saving the email address, you will receive an email
+    with an authorization code. Your email address will be changed after you have submitted this code.
+    </string>
+    <string name="dialog_edit_user_email" >Set Email Address</string>
+    <string name="dialog_submit_auth_code">Submit Authorization Code</string>
+    <string name="action_submit">Submit</string>
+    <string name="no_email_set">(No email address set)</string>
+    <string name="toast_auth_request_not_found">Authorization request not found on server</string>
+    <string name="toast_auth_invalid">Invalid authorization code</string>
+    <string name="toast_email_duplicate">The email address is already in use</string>
+    <string name="dialog_confirm_delete_email_message">Delete email address?</string>
+    <string name="dialog_confirm_delete_email_affirmative">Delete</string>
 </resources>

@@ -2,37 +2,50 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <group android:checkableBehavior="single">
-        <item
-            android:id="@+id/nav_view"
-            android:checked="true"
-            android:icon="@drawable/ic_view_agenda_24dp"
-            android:title="Meeting"/>
-        <item
-            android:id="@+id/nav_about"
-            android:icon="@drawable/ic_info_24dp"
-            android:title="About"/>
+            <item
+                android:id="@+id/nav_view"
+                android:checked="true"
+                android:icon="@drawable/ic_view_agenda_24dp"
+                android:title="Meeting"/>
+            <item
+                android:id="@+id/nav_about"
+                android:icon="@drawable/ic_info_24dp"
+                android:title="About"/>
     </group>
 
     <item android:title="Actions">
         <menu>
             <item
                 android:id="@+id/nav_new_meeting"
-                android:icon="@drawable/ic_note_add"
                 android:title="Create Meeting"/>
             <item
                 android:id="@+id/nav_example"
-                android:icon="@drawable/ic_visibility"
                 android:title="View Example"/>
             <item
-                android:id="@+id/nav_edit_user"
-                android:icon="@drawable/ic_mode_edit_24dp"
-                android:enabled="false"
-                android:title="Edit User Name"/>
-            <item
                 android:id="@+id/nav_clear_history"
-                android:icon="@drawable/ic_close"
                 android:visible="false"
                 android:title="Clear History"/>
+        </menu>
+    </item>
+
+    <item android:title="Settings">
+        <menu>
+            <item
+                android:id="@+id/nav_change_user_name"
+                android:enabled="false"
+                android:title="Change Username"/>
+            <item
+                android:id="@+id/nav_set_user_email"
+                android:enabled="false"
+                android:title="Set Email Address"/>
+            <item
+                android:id="@+id/nav_delete_user_email"
+                android:visible="false"
+                android:title="Delete Email Address"/>
+            <item
+                android:id="@+id/nav_submit_auth_code"
+                android:enabled="false"
+                android:title="Submit Authorization Code"/>
         </menu>
     </item>
 

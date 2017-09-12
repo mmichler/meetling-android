@@ -2,6 +2,7 @@ package app.meetling.io;
 
 import android.os.AsyncTask;
 import android.util.Log;
+import android.util.Pair;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -123,6 +124,127 @@ public class WebApi {
         }
 
         new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, id, authSecret);
+
+        return then;
+    }
+
+    public Then<String> setEmail(String email, User user) {
+        Then<String> then = new Then<>();
+
+        class RequestTask extends AsyncTask<Void, Void, String> {
+
+            @Override
+            protected String doInBackground(Void... params) {
+                String endpoint = String.format("/api/users/%s/set-email", user.getId());
+                JSONObject content = new JSONObject();
+                try {
+                    content.put("email", email);
+                } catch (JSONException e) {
+                    // unreachable
+                    throw new RuntimeException(e);
+                }
+                JSONObject returnObj
+                        = (JSONObject) httpPost(endpoint, content, user.getAuthSecret());
+                checkForErrors(returnObj);
+
+                String authRequestId;
+                try {
+                    authRequestId = (String) returnObj.get("id");
+                } catch (JSONException e) {
+                    // unreachable
+                    throw new RuntimeException(e);
+                }
+
+                return authRequestId;
+            }
+
+            @Override
+            protected void onPostExecute(String authId) {
+                super.onPostExecute(authId);
+
+                then.compute(authId);
+            }
+        }
+
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+        return then;
+    }
+
+    public Then<User> finishSetEmail(String authRequestId, String authCode, User user) {
+        Then<User> then = new Then<>();
+
+        class RequestTask extends AsyncTask<Void, Void, User> {
+            private Pair<String, String> error;
+
+            @Override
+            protected User doInBackground(Void... params) {
+                String endpoint = String.format("/api/users/%s/finish-set-email", user.getId());
+                JSONObject content = new JSONObject();
+                try {
+                    content.put("auth_request_id", authRequestId);
+                    content.put("auth", authCode);
+                } catch (JSONException e) {
+                    // unreachable
+                    throw new RuntimeException(e);
+                }
+                JSONObject returnObj
+                        = (JSONObject) httpPost(endpoint, content, user.getAuthSecret());
+
+                try {
+                    checkForErrors(returnObj);
+                } catch (ValueError valueError) {
+                    error = new Pair<>("ValueError", valueError.getMessage());
+                    return null;
+                }
+
+                return new User(returnObj);
+            }
+
+            @Override
+            protected void onPostExecute(User result) {
+                super.onPostExecute(result);
+
+                if (error != null) {
+                    then.setError(error);
+                }
+                then.compute(result);
+
+            }
+        }
+
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+        return then;
+    }
+
+    public Then<User> deleteEmail(User user) {
+        Then<User> then = new Then<>();
+
+        class RequestTask extends AsyncTask<Void, Void, User> {
+
+            @Override
+            protected User doInBackground(Void... params) {
+                User result;
+
+                String endpoint = String.format("/api/users/%s/remove-email", user.getId());
+                JSONObject returnObj
+                        = (JSONObject) httpPost(endpoint, user.getJson(), user.getAuthSecret());
+
+                checkForErrors(returnObj);
+                result = new User(returnObj);
+
+                return result;
+            }
+            @Override
+            protected void onPostExecute(User result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }

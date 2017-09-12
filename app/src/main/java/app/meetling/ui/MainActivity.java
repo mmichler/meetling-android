@@ -15,9 +15,13 @@ import android.support.v4.util.Pair;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.ContentLoadingProgressBar;
 import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.app.AppCompatDialogFragment;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -33,7 +37,9 @@ import app.meetling.io.Then.Callback;
 import app.meetling.io.User;
 import app.meetling.io.WebApi;
 import app.meetling.ui.edit.EditMeetingDialog;
-import app.meetling.ui.edit.EditUserDialog;
+import app.meetling.ui.edit.EditUserNameDialog;
+import app.meetling.ui.edit.SetUserEmailDialog;
+import app.meetling.ui.edit.SubmitAuthCodeDialog;
 import app.meetling.ui.meeting.MeetingFragment;
 
 import static app.meetling.io.User.EXTRA_USER;
@@ -192,15 +198,43 @@ public class MainActivity extends AppCompatActivity
                 case R.id.nav_example :
                     showExampleMeeting();
                     break;
-                case R.id.nav_edit_user :
-                    // FIXME proof of concept, better: use onDrawerClosed() callback of DrawerLayout.DrawerListener
-                    new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        editUser();
-                    }
-                }, 230);
-
+                case R.id.nav_change_user_name :
+                    // TODO proof of concept, better: use onDrawerClosed() callback of DrawerLayout
+                    // .DrawerListener
+                    new Handler().postDelayed(() -> showDialog(
+                            EditUserNameDialog.newInstance(
+                                    mUser, mApi.getHost()), "dialog_edit_user_name"), 230);
+                    break;
+                case R.id.nav_set_user_email :
+                    showDialog(
+                            SetUserEmailDialog.newInstance(
+                                    mUser, mApi.getHost()), "dialog_set_user_email");
+                    break;
+                case R.id.nav_delete_user_email :
+                    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                    builder.setMessage(R.string.dialog_confirm_delete_email_message);
+                    builder.setPositiveButton(
+                            R.string.dialog_confirm_delete_email_affirmative, null);
+                    builder.setNegativeButton(R.string.action_cancel, null);
+                    AlertDialog dialog = builder.create();
+                    dialog.setOnShowListener(di -> {
+                        Button buttonPositive = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+                        buttonPositive.setOnClickListener(v ->
+                            mApi.deleteEmail(mUser).then(new Callback<User>() {
+                                @Override
+                                public void call(User user) {
+                                    mUser = user;
+                                    showUser();
+                                    dialog.dismiss();
+                                }
+                        }));
+                    });
+                    dialog.show();
+                    break;
+                case R.id.nav_submit_auth_code :
+                    showDialog(
+                            SubmitAuthCodeDialog.newInstance(
+                                    mUser, mApi.getHost()), "dialog_submit_auth_code");
                     break;
                 case R.id.nav_clear_history:
                     clearHistory();
@@ -247,6 +281,46 @@ public class MainActivity extends AppCompatActivity
         showFragment(
                 MeetingFragment.newInstance(
                         meeting, mUser, mApi.getHost()), R.string.title_meeting);
+    }
+
+    public void showUser() {
+        ((TextView) findViewById(R.id.user_name)).setText(mUser.getName());
+        Menu menu = mNavigationView.getMenu();
+        menu.findItem(R.id.nav_change_user_name).setEnabled(true);
+        menu.findItem(R.id.nav_set_user_email).setEnabled(true);
+
+        String email = mUser.getEmail();
+        if (email != null) {
+            ((TextView) findViewById(R.id.user_email)).setText(email);
+            menu.findItem(R.id.nav_set_user_email).setVisible(false);
+            menu.findItem(R.id.nav_delete_user_email).setVisible(true);
+        } else {
+            ((TextView) findViewById(R.id.user_email)).setText("");
+            menu.findItem(R.id.nav_set_user_email).setVisible(true);
+            menu.findItem(R.id.nav_delete_user_email).setVisible(false);
+        }
+
+        Then.Callback<Boolean> enableAuthMenu = new Then.Callback<Boolean>() {
+            @Override
+            public void call(Boolean has) {
+                mNavigationView.getMenu().findItem(R.id.nav_submit_auth_code).setEnabled(has);
+            }
+        };
+        LocalStorage localStorage = new LocalStorage(this);
+        localStorage.hasAuthRequestId().then(enableAuthMenu);
+    }
+
+    /*
+    Getters/Setters
+    ---------------
+     */
+
+    public User getUser() {
+        return mUser;
+    }
+
+    public void setUser(User user) {
+        mUser = user;
     }
 
     /*
@@ -308,12 +382,6 @@ public class MainActivity extends AppCompatActivity
                 showHistory();
             }
         });
-    }
-
-    private void showUser() {
-        // user
-        ((TextView) findViewById(R.id.user_name)).setText(mUser.getName());
-        mNavigationView.getMenu().findItem(R.id.nav_edit_user).setEnabled(true);
     }
 
     private void handleIntent() {
@@ -449,13 +517,12 @@ public class MainActivity extends AppCompatActivity
         showFragment(AboutFragment.newInstance(), R.string.title_about);
     }
 
-    private void editUser() {
+    private void showDialog(AppCompatDialogFragment dialogFragment, String tag) {
         Fragment currentFragment = getSupportFragmentManager()
                 .findFragmentById(R.id.fragment_placeholder_main);
-        EditUserDialog editUserDialog = EditUserDialog.newInstance(mUser, mApi.getHost());
-        editUserDialog.setTargetFragment(currentFragment, 300);
+        dialogFragment.setTargetFragment(currentFragment, 300);
         FragmentManager fragmentManager = getSupportFragmentManager();
-        editUserDialog.show(fragmentManager, "dialog_edit_user");
+        dialogFragment.show(fragmentManager, tag);
     }
 
     private void clearHistory() {

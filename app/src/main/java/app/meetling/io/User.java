@@ -15,7 +15,6 @@ import java.util.List;
  */
 public class User extends Object implements Editable<String> {
     public static final String EXTRA_USER = User.class.getPackage() + ".EXTRA_USER";
-    public static final String CONTENT_TYPE = "meetling/user";
     public static final Creator<User> CREATOR = new Creator<User>() {
         @Override
         public User createFromParcel(Parcel in) {
@@ -29,14 +28,16 @@ public class User extends Object implements Editable<String> {
     };
     private List<String> mAuthorIds;
     private String mName;
+    private String mEmail;
     private String mAuthSecret;
 
-    User(String type, String id, Boolean trashed, List<String> authorIds, String name,
+    User(String type, String id, Boolean trashed, List<String> authorIds, String name, String email,
             String authSecret) {
         super(type, id, trashed);
 
         mAuthorIds = authorIds;
         mName = name;
+        mEmail = email;
         mAuthSecret = authSecret;
     }
 
@@ -50,6 +51,9 @@ public class User extends Object implements Editable<String> {
                 mAuthorIds.add(authorsArr.getString(i));
             }
             mName = obj.getString("name");
+            if (!obj.isNull("email")) {
+                mEmail = obj.optString("email");
+            }
             mAuthSecret = obj.optString("auth_secret");
         } catch (JSONException e) {
             // unreachable
@@ -63,6 +67,7 @@ public class User extends Object implements Editable<String> {
         mAuthorIds = new ArrayList<>();
         in.readStringList(mAuthorIds);
         mName = in.readString();
+        mEmail = in.readString();
         mAuthSecret = in.readString();
     }
 
@@ -77,6 +82,7 @@ public class User extends Object implements Editable<String> {
             }
             obj.put("authors", authorIdArr);
             obj.put("name", mName);
+            obj.put("email", Util.toNullableJsonValue(mEmail));
             obj.put("auth_secret", mAuthSecret);
         } catch (JSONException e) {
             // unreachable
@@ -92,6 +98,10 @@ public class User extends Object implements Editable<String> {
 
     public void setName(String name) {
         mName = name;
+    }
+
+    public String getEmail() {
+        return mEmail;
     }
 
     public String getAuthSecret() {
@@ -114,6 +124,7 @@ public class User extends Object implements Editable<String> {
 
         dest.writeStringList(mAuthorIds);
         dest.writeString(mName);
+        dest.writeString(mEmail);
         dest.writeString(mAuthSecret);
     }
 }
