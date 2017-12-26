@@ -96,6 +96,7 @@ public class User extends Object implements Editable<String> {
         return mName;
     }
 
+    // TODO remove, name should only be set via API call
     public void setName(String name) {
         mName = name;
     }

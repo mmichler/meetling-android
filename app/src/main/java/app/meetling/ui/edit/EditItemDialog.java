@@ -17,22 +17,20 @@ import android.widget.Button;
 
 import app.meetling.R;
 import app.meetling.io.AgendaItem;
+import app.meetling.io.Host;
 import app.meetling.io.Meeting;
 import app.meetling.io.Then;
-import app.meetling.io.User;
 import app.meetling.io.WebApi;
 
 import static app.meetling.io.AgendaItem.EXTRA_AGENDA_ITEM;
+import static app.meetling.io.Host.EXTRA_HOST;
 import static app.meetling.io.Meeting.EXTRA_MEETING;
-import static app.meetling.io.User.EXTRA_USER;
-import static app.meetling.io.WebApi.EXTRA_API_HOST;
 
 /**
  * Created by mmichler on 27.06.2017.
  */
 
 public class EditItemDialog extends AppCompatDialogFragment {
-    private User mUser;
     private WebApi mApi;
     private EditItemDialog.Listener mListener;
     private AgendaItem mItem;
@@ -41,14 +39,16 @@ public class EditItemDialog extends AppCompatDialogFragment {
     private TextInputEditText mInputDuration;
     private TextInputEditText mInputDescription;
 
-    public static EditItemDialog newInstance(
-            AgendaItem item, Meeting meeting, User user, String host) {
+    public static EditItemDialog newInstance(Meeting meeting, Host host) {
+        return newInstance(null, meeting, host);
+    }
+
+    public static EditItemDialog newInstance(AgendaItem item, Meeting meeting, Host host) {
         EditItemDialog fragment = new EditItemDialog();
         Bundle args = new Bundle();
         args.putParcelable(EXTRA_AGENDA_ITEM, item);
         args.putParcelable(EXTRA_MEETING, meeting);
-        args.putParcelable(EXTRA_USER, user);
-        args.putString(EXTRA_API_HOST, host);
+        args.putParcelable(EXTRA_HOST, host);
         fragment.setArguments(args);
         return fragment;
     }
@@ -72,8 +72,7 @@ public class EditItemDialog extends AppCompatDialogFragment {
         if (args != null) {
             mItem = args.getParcelable(EXTRA_AGENDA_ITEM);
             mMeeting = args.getParcelable(EXTRA_MEETING);
-            mUser = args.getParcelable(EXTRA_USER);
-            mApi = new WebApi(args.getString(EXTRA_API_HOST));
+            mApi = new WebApi(args.getParcelable(EXTRA_HOST));
         } else {
             throw new IllegalArgumentException("Args may not be null");
         }
@@ -128,7 +127,7 @@ public class EditItemDialog extends AppCompatDialogFragment {
                 };
                 // TODO show progressbar
                 if (mItem == null) {
-                    mApi.createAgendaItem(title, duration, description, mMeeting, mUser).then(returnItem);
+                    mApi.createAgendaItem(title, duration, description, mMeeting).then(returnItem);
 
                     return;
                 }
@@ -136,7 +135,7 @@ public class EditItemDialog extends AppCompatDialogFragment {
                 mItem.setDuration(duration);
                 mItem.setDescription(description);
 
-                mApi.edit(mItem, mMeeting, mUser).then(returnItem);
+                mApi.edit(mItem, mMeeting).then(returnItem);
             }
         });
 

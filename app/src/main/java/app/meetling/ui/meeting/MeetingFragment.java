@@ -28,17 +28,16 @@ import java.util.List;
 
 import app.meetling.R;
 import app.meetling.io.AgendaItem;
+import app.meetling.io.Host;
 import app.meetling.io.Meeting;
-import app.meetling.io.User;
 import app.meetling.io.WebApi;
 import app.meetling.ui.MainActivity;
 import app.meetling.ui.NavigationFragment;
 import app.meetling.ui.edit.EditItemDialog;
 import app.meetling.ui.edit.EditMeetingDialog;
 
+import static app.meetling.io.Host.EXTRA_HOST;
 import static app.meetling.io.Meeting.EXTRA_MEETING;
-import static app.meetling.io.User.EXTRA_USER;
-import static app.meetling.io.WebApi.EXTRA_API_HOST;
 
 /**
  * Fragment that displays the a meeting's data.
@@ -47,7 +46,7 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
         implements EditMeetingDialog.Listener, EditItemDialog.Listener {
     private static final String ITEMS = "items";
     private static final String TRASHED_ITEMS = "trashed_items";
-    private User mUser;
+    private Host mHost;
     private Meeting mMeeting;
     private Adapter.AgendaItemAdapter mItemAdapter;
     private Adapter.TrashedItemAdapter mTrashedItemAdapter;
@@ -77,21 +76,18 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
         UP, DOWN
     }
 
-    public static MeetingFragment newInstance(Meeting meeting, User user, String host) {
-        return newInstance(
-                meeting, new ArrayList<AgendaItem>(), new ArrayList<AgendaItem>(), user, host);
+    public static MeetingFragment newInstance(Meeting meeting, Host host) {
+        return newInstance(meeting, new ArrayList<>(), new ArrayList<>(), host);
     }
 
     public static MeetingFragment newInstance(
-            Meeting meeting, List<AgendaItem> items, List<AgendaItem> trashedItems, User user,
-            String host) {
+            Meeting meeting, List<AgendaItem> items, List<AgendaItem> trashedItems, Host host) {
         MeetingFragment fragment = new MeetingFragment();
         Bundle args = new Bundle();
         args.putParcelable(EXTRA_MEETING, meeting);
         args.putParcelableArrayList(ITEMS, new ArrayList<Parcelable>(items));
         args.putParcelableArrayList(TRASHED_ITEMS, new ArrayList<Parcelable>(trashedItems));
-        args.putParcelable(EXTRA_USER, user);
-        args.putString(EXTRA_API_HOST, host);
+        args.putParcelable(EXTRA_HOST, host);
 
         fragment.setArguments(args);
         return fragment;
@@ -103,13 +99,14 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
 
         Bundle args = getArguments();
         if (args != null) {
+            mHost = args.getParcelable(EXTRA_HOST);
             mMeeting = args.getParcelable(EXTRA_MEETING);
             mItemAdapter
                     = new Adapter.AgendaItemAdapter(args.<AgendaItem>getParcelableArrayList(ITEMS), this);
             mTrashedItemAdapter
                     = new Adapter.TrashedItemAdapter(
                             args.<AgendaItem>getParcelableArrayList(TRASHED_ITEMS), this);
-            mUser = args.getParcelable(EXTRA_USER);
+
         } else {
             throw new IllegalArgumentException("Args may not be null");
         }
@@ -136,8 +133,7 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
                     case R.id.action_edit :
                         FragmentManager fragmentManager = getFragmentManager();
                         EditMeetingDialog editMeetingDialog =
-                                EditMeetingDialog.newInstance(
-                                        mMeeting, mUser, getArguments().getString(EXTRA_API_HOST));
+                                EditMeetingDialog.newInstance(mMeeting, mHost);
                         editMeetingDialog.setTargetFragment(MeetingFragment.this, 300);
                         editMeetingDialog.show(fragmentManager, "dialog_edit_meeting");
                         return true;
@@ -175,9 +171,7 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
             @Override
             public void onClick(View v) {
                 FragmentManager fragmentManager = getFragmentManager();
-                EditItemDialog editItemDialog =
-                        EditItemDialog.newInstance(
-                                null, mMeeting, mUser, getArguments().getString(EXTRA_API_HOST));
+                EditItemDialog editItemDialog = EditItemDialog.newInstance(mMeeting, mHost);
                 editItemDialog.setTargetFragment(MeetingFragment.this, 300);
                 editItemDialog.show(fragmentManager, "dialog_edit_item");
             }
@@ -186,9 +180,7 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
         mFabEdit.setOnClickListener(v -> {
             FragmentManager fragmentManager = getFragmentManager();
             EditItemDialog editItemDialog =
-                    EditItemDialog.newInstance(
-                            mItemAdapter.getActiveItem(), mMeeting, mUser,
-                            getArguments().getString(EXTRA_API_HOST));
+                    EditItemDialog.newInstance(mItemAdapter.getActiveItem(), mMeeting, mHost);
             editItemDialog.setTargetFragment(MeetingFragment.this, 300);
             editItemDialog.show(fragmentManager, "dialog_edit_item");
         });
@@ -229,12 +221,12 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
     private void trashAgendaItem(AgendaItem item) {
         mItemAdapter.remove(item);
         mTrashedItemAdapter.put(item);
-        new WebApi("https://meetling.org").trashAgendaItem(item, mMeeting, mUser);
+        new WebApi(mHost).trashAgendaItem(item, mMeeting);
     }
 
     void restoreAgendaItem(AgendaItem item) {
         mTrashedItemAdapter.remove(item);
-        new WebApi("https://meetling.org").restoreAgendaItem(item, mMeeting, mUser);
+        new WebApi(mHost).restoreAgendaItem(item, mMeeting);
         mItemAdapter.put(item);
     }
 
@@ -261,7 +253,7 @@ public class MeetingFragment extends NavigationFragment<MeetingFragment.Callback
         mItemMoved = false;
         AgendaItem item = mItemAdapter.getItemAt(finalPosition);
         AgendaItem afterItem = finalPosition == 0 ? null : mItemAdapter.getItemAt(finalPosition - 1);
-        new WebApi("https://meetling.org").moveAgendaItem(item, afterItem, mMeeting, mUser);
+        new WebApi(mHost).moveAgendaItem(item, afterItem, mMeeting);
     }
 
     void updateEditFabVisibility() {

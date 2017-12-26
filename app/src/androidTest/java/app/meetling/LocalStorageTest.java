@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
+import app.meetling.io.Host;
 import app.meetling.io.LocalStorage;
 import app.meetling.io.Then;
 
@@ -40,23 +41,30 @@ public class LocalStorageTest {
         final Pair<String, String>[] credentialsActual = new Pair[1];
 
 
-        final Then.Callback<Pair<String, String>> readCredentials
-                = new Then.Callback<Pair<String, String>>() {
+        final Then.Callback<Host> readCredentials
+                = new Then.Callback<Host>() {
             @Override
-            public void call(Pair<String, String> credentials) {
-                credentialsActual[0] = credentials;
+            public void call(Host host) {
+                credentialsActual[0] = new Pair<>(host.getUserId(), host.getAuthSecret());
                 mLatch.countDown();
             }
         };
 
-        Then.Callback<Void> getCredentials = new Then.Callback<Void>() {
+        Then.Callback<Host> getCredentials = new Then.Callback<Host>() {
             @Override
-            public void call(Void aVoid) {
-                mLocalStorage.getCredentials().then(readCredentials);
+            public void call(Host host) {
+                mLocalStorage.getHost(host.getId()).then(readCredentials);
             }
         };
 
-        mLocalStorage.setCredentials(userIdExpected, authSecretExpected).then(getCredentials);
+        Then.Callback<Host> setCredentials = new Then.Callback<Host>() {
+            @Override
+            public void call(Host host) {
+                mLocalStorage.setCredentials(host, userIdExpected, authSecretExpected).then(getCredentials);
+            }
+        };
+
+        mLocalStorage.addHost("https://meetling.org").then(setCredentials);
         mLatch.await();
 
         assertEquals(userIdExpected, credentialsActual[0].first);

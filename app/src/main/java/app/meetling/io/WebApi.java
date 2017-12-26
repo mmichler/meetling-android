@@ -17,6 +17,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.lang.Object;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -27,18 +28,36 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-import javax.net.ssl.HttpsURLConnection;
-
 /**
  * Encapsulates all communication with the Meetling Web API.
  */
 // TODO decide whether methods take objects or ids/authSecrets
 public class WebApi {
-    public static final String EXTRA_API_HOST = "api_host";
 
-    private String mHost;
+    private Host mHost;
 
-    public WebApi(String host) {
+    // TODO move verification to localStorage - no web calls
+    /**
+     * Tests whether the a Meetling API is hosted at the input URL.
+     *
+     * @param url A URL including the protocol
+     * @return A sanitized hostname with either an http or https protocol prefix or <code>null</code> if
+     * the host does not exist or there is no Meetling API provided at the host
+     */
+    public static String verifyHost(String url) {
+        URL parsedUrl;
+        try {
+            parsedUrl = new URL(url);
+        } catch (MalformedURLException e) {
+            return null;
+        }
+        String protocol = parsedUrl.getProtocol();
+        String host = parsedUrl.getHost();
+
+        return protocol + "://" + host;
+    }
+
+    public WebApi(Host host) {
         mHost = host;
     }
 
@@ -128,14 +147,62 @@ public class WebApi {
         return then;
     }
 
-    public Then<String> setEmail(String email, User user) {
+    /**
+     * Retrieves the user object for the credentials stored in the host object or creates a new user and
+     * updates the host with the user's credentials
+     *
+     * @param localStorage used to update the host if there are no credentials stored in the host object
+     *
+     * @return the user that the app uses to edit meetings on the host
+     */
+    public Then<User> getUser(LocalStorage localStorage) {
+        Then<User> then = new Then<>();
+
+        class Task extends AsyncTask<Void, Void, User> {
+
+            @Override
+            protected User doInBackground(Void... params) {
+                User result;
+
+                JSONObject returnObj;
+                if (mHost.hasCredentials()) {
+                    // get existing user
+                    returnObj
+                            = (JSONObject) httpGet("/api/users/" + mHost.getUserId(), mHost.getAuthSecret());
+                } else {
+                    // create new user
+                    returnObj = (JSONObject) httpPost("/api/login", "{code: null}");
+                }
+
+                checkForErrors(returnObj);
+
+                result = new User(returnObj);
+                mHost = localStorage.setCredentialsSync(mHost, result.getId(), result.getAuthSecret());
+
+                return result;
+            }
+
+            @Override
+            protected void onPostExecute(User result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new Task().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+
+        return then;
+    }
+
+    public Then<String> setEmail(String email) {
         Then<String> then = new Then<>();
 
         class RequestTask extends AsyncTask<Void, Void, String> {
 
             @Override
             protected String doInBackground(Void... params) {
-                String endpoint = String.format("/api/users/%s/set-email", user.getId());
+                String endpoint = String.format("/api/users/%s/set-email", mHost.getUserId());
                 JSONObject content = new JSONObject();
                 try {
                     content.put("email", email);
@@ -144,7 +211,7 @@ public class WebApi {
                     throw new RuntimeException(e);
                 }
                 JSONObject returnObj
-                        = (JSONObject) httpPost(endpoint, content, user.getAuthSecret());
+                        = (JSONObject) httpPost(endpoint, content, mHost.getAuthSecret());
                 checkForErrors(returnObj);
 
                 String authRequestId;
@@ -171,7 +238,7 @@ public class WebApi {
         return then;
     }
 
-    public Then<User> finishSetEmail(String authRequestId, String authCode, User user) {
+    public Then<User> finishSetEmail(String authRequestId, String authCode) {
         Then<User> then = new Then<>();
 
         class RequestTask extends AsyncTask<Void, Void, User> {
@@ -179,7 +246,7 @@ public class WebApi {
 
             @Override
             protected User doInBackground(Void... params) {
-                String endpoint = String.format("/api/users/%s/finish-set-email", user.getId());
+                String endpoint = String.format("/api/users/%s/finish-set-email", mHost.getUserId());
                 JSONObject content = new JSONObject();
                 try {
                     content.put("auth_request_id", authRequestId);
@@ -189,7 +256,7 @@ public class WebApi {
                     throw new RuntimeException(e);
                 }
                 JSONObject returnObj
-                        = (JSONObject) httpPost(endpoint, content, user.getAuthSecret());
+                        = (JSONObject) httpPost(endpoint, content, mHost.getAuthSecret());
 
                 try {
                     checkForErrors(returnObj);
@@ -227,9 +294,9 @@ public class WebApi {
             protected User doInBackground(Void... params) {
                 User result;
 
-                String endpoint = String.format("/api/users/%s/remove-email", user.getId());
+                String endpoint = String.format("/api/users/%s/remove-email", mHost.getUserId());
                 JSONObject returnObj
-                        = (JSONObject) httpPost(endpoint, user.getJson(), user.getAuthSecret());
+                        = (JSONObject) httpPost(endpoint, user.getJson(), mHost.getAuthSecret());
 
                 checkForErrors(returnObj);
                 result = new User(returnObj);
@@ -250,18 +317,17 @@ public class WebApi {
     }
 
     public Then<User> edit(User user) {
-        final Then<User> then = new Then<>();
+        Then<User> then = new Then<>();
 
-        class RequestTask extends AsyncTask<User, Void, User> {
+        class RequestTask extends AsyncTask<Void, Void, User> {
 
             @Override
-            protected User doInBackground(User... params) {
-                User user = params[0];
+            protected User doInBackground(Void... params) {
                 User result;
 
-                String endpoint = String.format("/api/users/%s", user.getId());
+                String endpoint = String.format("/api/users/%s", mHost.getUserId());
                 JSONObject returnObj
-                        = (JSONObject) httpPost(endpoint, user.getJson(), user.getAuthSecret());
+                        = (JSONObject) httpPost(endpoint, user.getJson(), mHost.getAuthSecret());
 
                 checkForErrors(returnObj);
                 result = new User(returnObj);
@@ -277,25 +343,23 @@ public class WebApi {
             }
         }
 
-        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }
 
-    public Then<Meeting> edit(Meeting meeting, User user) {
-        final Then<Meeting> then = new Then<>();
+    public Then<Meeting> edit(Meeting meeting) {
+        Then<Meeting> then = new Then<>();
 
-        class RequestTask extends AsyncTask<app.meetling.io.Object, Void, Meeting> {
+        class RequestTask extends AsyncTask<Void, Void, Meeting> {
 
             @Override
-            protected Meeting doInBackground(app.meetling.io.Object... params) {
+            protected Meeting doInBackground(Void... params) {
                 Meeting result;
-                Meeting meeting = (Meeting) params[0];
-                User user = (User) params[1];
 
                 String endpoint = String.format("/api/meetings/%s", meeting.getId());
                 JSONObject returnObj
-                        = (JSONObject) httpPost(endpoint, meeting.getJson(), user.getAuthSecret());
+                        = (JSONObject) httpPost(endpoint, meeting.getJson(), mHost.getAuthSecret());
 
                 checkForErrors(returnObj);
                 result = new Meeting(returnObj);
@@ -311,26 +375,22 @@ public class WebApi {
             }
         }
 
-        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, meeting, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }
 
-    public Then<AgendaItem> edit(AgendaItem item, Meeting meeting, User user) {
-        final Then<AgendaItem> then = new Then<>();
+    public Then<AgendaItem> edit(AgendaItem item, Meeting meeting) {
+        Then<AgendaItem> then = new Then<>();
 
-        class RequestTask extends AsyncTask<app.meetling.io.Object, Void, AgendaItem> {
+        class RequestTask extends AsyncTask<Void, Void, AgendaItem> {
 
             @Override
-            protected AgendaItem doInBackground(app.meetling.io.Object... params) {
-                AgendaItem item = (AgendaItem) params[0];
-                Meeting meeting = (Meeting) params[1];
-                User user = (User) params[2];
+            protected AgendaItem doInBackground(Void... params) {
                 AgendaItem result;
                 String endpoint
                         = String.format("/api/meetings/%s/items/%s", meeting.getId(), item.getId());
-                JSONObject returnObj
-                        = (JSONObject) httpPost(endpoint, item.getJson(), user.getAuthSecret());
+                JSONObject returnObj = (JSONObject) httpPost(endpoint, item.getJson(), mHost.getAuthSecret());
 
                 checkForErrors(returnObj);
                 result = new AgendaItem(returnObj);
@@ -346,24 +406,18 @@ public class WebApi {
             }
         }
 
-        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, item, meeting, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }
 
-    public Then<Meeting> createMeeting(
-            String title, Date time, String location, String description, User user) {
-        final Then<Meeting> then = new Then<>();
+    public Then<Meeting> createMeeting(String title, Date time, String location, String description) {
+        Then<Meeting> then = new Then<>();
 
-        class RequestTask extends AsyncTask<Object, Void, Meeting> {
+        class RequestTask extends AsyncTask<Void, Void, Meeting> {
 
             @Override
-            protected Meeting doInBackground(Object... params) {
-                String title = (String) params[0];
-                Date time = (Date) params[1];
-                String location = (String) params[2];
-                String description = (String) params[3];
-                User user = (User) params[4];
+            protected Meeting doInBackground(Void... params) {
                 JSONObject content;
 
                 try {
@@ -379,7 +433,7 @@ public class WebApi {
                 Meeting result;
 
                 JSONObject returnObj
-                        = (JSONObject) httpPost("/api/meetings", content, user.getAuthSecret());
+                        = (JSONObject) httpPost("/api/meetings", content, mHost.getAuthSecret());
 
                 try {
                     if (returnObj.getString("__type__").equals("ValueError")) {
@@ -405,25 +459,23 @@ public class WebApi {
             }
         }
 
-        new RequestTask()
-                .executeOnExecutor(
-                        AsyncTask.THREAD_POOL_EXECUTOR, title, time, location, description, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }
 
-    public Then<Meeting> createExampleMeeting(User user) {
-        final Then<Meeting> then = new Then<>();
+    public Then<Meeting> createExampleMeeting() {
+        Then<Meeting> then = new Then<>();
 
-        class RequestTask extends AsyncTask<User, Void, Meeting> {
+        class RequestTask extends AsyncTask<Void, Void, Meeting> {
 
             @Override
-            protected Meeting doInBackground(User... params) {
+            protected Meeting doInBackground(Void... params) {
                 Meeting result;
 
                 JSONObject returnObj
                         = (JSONObject) httpPost(
-                                "/api/create-example-meeting", params[0].getAuthSecret());
+                                "/api/create-example-meeting", mHost.getAuthSecret());
 
                 result = new Meeting(returnObj);
 
@@ -438,23 +490,20 @@ public class WebApi {
             }
         }
 
-        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }
 
-    public Then<Meeting> getMeeting(String id, User user) {
-        final Then<Meeting> then = new Then<>();
+    public Then<Meeting> getMeeting(String id) {
+        Then<Meeting> then = new Then<>();
 
-        class RequestTask extends AsyncTask<Object, Void, Meeting> {
+        class RequestTask extends AsyncTask<Void, Void, Meeting> {
             @Override
-            protected Meeting doInBackground(Object... params) {
-                String id = (String) params[0];
-                User user = (User) params[1];
+            protected Meeting doInBackground(Void... params) {
                 Meeting result;
 
-                JSONObject returnObj
-                        = (JSONObject) httpGet("/api/meetings/" + id, user.getAuthSecret());
+                JSONObject returnObj = (JSONObject) httpGet("/api/meetings/" + id, mHost.getAuthSecret());
 
                 checkForErrors(returnObj);
                 result = new Meeting(returnObj);
@@ -470,24 +519,19 @@ public class WebApi {
             }
         }
 
-        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, id, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }
 
     public Then<AgendaItem> createAgendaItem(
-            String title, Integer duration, String description, Meeting meeting, User user) {
-        final Then<AgendaItem> then = new Then<>();
+            String title, Integer duration, String description, Meeting meeting) {
+        Then<AgendaItem> then = new Then<>();
 
-        class RequestTask extends AsyncTask<Object, Void, AgendaItem> {
+        class RequestTask extends AsyncTask<Void, Void, AgendaItem> {
 
             @Override
-            protected AgendaItem doInBackground(Object... params) {
-                String title = (String) params[0];
-                Integer duration = (Integer) params[1];
-                String description = (String) params[2];
-                Meeting meeting = (Meeting) params[3];
-                User user = (User) params[4];
+            protected AgendaItem doInBackground(Void... params) {
                 JSONObject content;
 
                 try {
@@ -503,7 +547,7 @@ public class WebApi {
 
                 JSONObject returnObj
                         = (JSONObject) httpPost(String.format("/api/meetings/%s/items",
-                                meeting.getId()), content, user.getAuthSecret());
+                                meeting.getId()), content, mHost.getAuthSecret());
 
                 checkForErrors(returnObj);
                 result = new AgendaItem(returnObj);
@@ -519,28 +563,23 @@ public class WebApi {
             }
         }
 
-        new RequestTask()
-                .executeOnExecutor(
-                        AsyncTask.THREAD_POOL_EXECUTOR, title, duration, description, meeting,
-                        user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }
 
-    public Then<List<AgendaItem>> getAgendaItems(String meetingId, User user) {
-        final Then<List<AgendaItem>> then = new Then<>();
+    public Then<List<AgendaItem>> getAgendaItems(String meetingId) {
+        Then<List<AgendaItem>> then = new Then<>();
 
-        class RequestTask extends AsyncTask<Object, Void, List<AgendaItem>> {
+        class RequestTask extends AsyncTask<Void, Void, List<AgendaItem>> {
 
             @Override
-            protected List<AgendaItem> doInBackground(Object... params) {
-                String meetingId = (String) params[0];
-                User user = (User) params[1];
+            protected List<AgendaItem> doInBackground(Void... params) {
                 List<AgendaItem> result = new ArrayList<>();
 
                 JSONArray returnArr
                         = (JSONArray) httpGet(String.format("/api/meetings/%s/items",
-                                meetingId), user.getAuthSecret());
+                                meetingId), mHost.getAuthSecret());
                 try {
                     for (int i = 0; i < returnArr.length(); i++) {
                         result.add(new AgendaItem(returnArr.getJSONObject(i)));
@@ -561,26 +600,23 @@ public class WebApi {
             }
         }
 
-        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, meetingId, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }
 
-    public Then<List<AgendaItem>> getTrashedAgendaItems(String meetingId, User user) {
+    public Then<List<AgendaItem>> getTrashedAgendaItems(String meetingId) {
+        Then<List<AgendaItem>> then = new Then<>();
 
-        final Then<List<AgendaItem>> then = new Then<>();
-
-        class RequestTask extends AsyncTask<Object, Void, List<AgendaItem>> {
+        class RequestTask extends AsyncTask<Void, Void, List<AgendaItem>> {
 
             @Override
-            protected List<AgendaItem> doInBackground(Object... params) {
-                String meetingId = (String) params[0];
-                User user = (User) params[1];
+            protected List<AgendaItem> doInBackground(Void... params) {
                 List<AgendaItem> result = new ArrayList<>();
 
                 JSONArray returnArr
                         = (JSONArray) httpGet(String.format("/api/meetings/%s/items/trashed",
-                                meetingId), user.getAuthSecret());
+                                meetingId), mHost.getAuthSecret());
                 try {
                     for (int i = 0; i < returnArr.length(); i++) {
                         result.add(new AgendaItem(returnArr.getJSONObject(i)));
@@ -601,21 +637,17 @@ public class WebApi {
             }
         }
 
-        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, meetingId, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 
         return then;
     }
 
-    public void trashAgendaItem(AgendaItem item, Meeting meeting, User user) {
+    public void trashAgendaItem(AgendaItem item, Meeting meeting) {
 
-        class RequestTask extends AsyncTask<Object, Void, Void> {
+        class RequestTask extends AsyncTask<Void, Void, Void> {
 
             @Override
-            protected Void doInBackground(Object... params) {
-                AgendaItem item = (AgendaItem) params[0];
-                Meeting meeting = (Meeting) params[1];
-                User user = (User) params[2];
-
+            protected Void doInBackground(Void... params) {
                 JSONObject content;
 
                 try {
@@ -628,24 +660,21 @@ public class WebApi {
                 checkForErrors(
                         httpPost(
                                 String.format("/api/meetings/%s/trash-agenda-item",
-                                meeting.getId()), content, user.getAuthSecret()));
+                                meeting.getId()), content, mHost.getAuthSecret()));
 
                 return null;
             }
         }
 
-        new RequestTask().execute(item, meeting, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
-    public void restoreAgendaItem(AgendaItem item, Meeting meeting, User user) {
+    public void restoreAgendaItem(AgendaItem item, Meeting meeting) {
 
-        class RequestTask extends AsyncTask<app.meetling.io.Object, Void, Void> {
+        class RequestTask extends AsyncTask<Void, Void, Void> {
 
             @Override
-            protected Void doInBackground(app.meetling.io.Object... params) {
-                AgendaItem item = (AgendaItem) params[0];
-                Meeting meeting = (Meeting) params[1];
-                User user = (User) params[2];
+            protected Void doInBackground(Void... params) {
                 JSONObject content;
 
                 try {
@@ -658,25 +687,21 @@ public class WebApi {
                 checkForErrors(
                         httpPost(
                                 String.format("/api/meetings/%s/restore-agenda-item",
-                                meeting.getId()), content, user.getAuthSecret()));
+                                meeting.getId()), content, mHost.getAuthSecret()));
 
                 return null;
             }
         }
 
-        new RequestTask().execute(item, meeting, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
-    public void moveAgendaItem(AgendaItem item, AgendaItem after, Meeting meeting, User user) {
+    public void moveAgendaItem(AgendaItem item, AgendaItem after, Meeting meeting) {
 
-        class RequestTask extends AsyncTask<app.meetling.io.Object, Void, Void> {
+        class RequestTask extends AsyncTask<Void, Void, Void> {
 
             @Override
-            protected Void doInBackground(app.meetling.io.Object... params) {
-                AgendaItem item = (AgendaItem) params[0];
-                AgendaItem after = (AgendaItem) params[1];
-                Meeting meeting = (Meeting) params[2];
-                User user = (User) params[3];
+            protected Void doInBackground(Void... params) {
                 JSONObject content;
 
                 try {
@@ -692,13 +717,17 @@ public class WebApi {
                 checkForErrors(
                         httpPost(
                                 String.format("/api/meetings/%s/move-agenda-item", meeting.getId()),
-                                content, user.getAuthSecret()));
+                                content, mHost.getAuthSecret()));
 
                 return null;
             }
         }
 
-        new RequestTask().execute(item, after, meeting, user);
+        new RequestTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+    }
+
+    public Host getHost() {
+        return mHost;
     }
 
     private void checkForErrors(Object returnObj) {
@@ -733,10 +762,10 @@ public class WebApi {
 
     private Object httpPost(String endpoint, JSONObject content, String authSecret) {
         Object response;
-        HttpsURLConnection urlConnection = null;
-        try { // replace with try-with-resources once minSdkVersion is 19
-            URL url = new URL(mHost + endpoint);
-            urlConnection = (HttpsURLConnection) url.openConnection();
+        HttpURLConnection urlConnection = null;
+        try { // TODO replace with try-with-resources
+            URL url = new URL(mHost.getUrl() + endpoint);
+            urlConnection = (HttpURLConnection) url.openConnection();
 
             urlConnection.setDoOutput(true);
             if (authSecret != null) {
@@ -746,7 +775,7 @@ public class WebApi {
             urlConnection.connect();
 
             if (content != null) {
-                Log.v("HTTPS POST", String.format(
+                Log.v("HTTP POST", String.format(
                         "%s %s, auth_secret=%s", endpoint, content.toString(), authSecret));
                 OutputStream out = urlConnection.getOutputStream();
                 byte[] postData = content.toString().getBytes();
@@ -773,14 +802,14 @@ public class WebApi {
 
     private Object httpGet(String endpoint, String authSecret) {
         Object response;
-        HttpsURLConnection urlConnection = null;
-        try { // replace with try-with-resources once minSdkVersion is 19
-            URL url = new URL(mHost + endpoint);
-            urlConnection = (HttpsURLConnection) url.openConnection();
+        HttpURLConnection urlConnection = null;
+        try { // TODO replace with try-with-resources once minSdkVersion is 19
+            URL url = new URL(mHost.getUrl() + endpoint);
+            urlConnection = (HttpURLConnection) url.openConnection();
 
             urlConnection.setDoInput(true);
             if (authSecret != null) {
-                Log.v("HTTPS GET", endpoint + ", auth_secret=" + authSecret);
+                Log.v("HTTP GET", endpoint + ", auth_secret=" + authSecret);
                 urlConnection.setRequestProperty("Cookie", "auth_secret=" + authSecret);
             }
 
@@ -803,16 +832,12 @@ public class WebApi {
         return response;
     }
 
-    public String getHost() {
-        return mHost;
-    }
-
-    private Object readStream(HttpsURLConnection urlConnection) throws IOException {
+    private Object readStream(HttpURLConnection urlConnection) throws IOException {
         StringBuilder stringBuilder = new StringBuilder();
 
         InputStream in = null;
         BufferedReader reader = null;
-        try { // replace with try-with-resources once minSdkVersion is 19
+        try { // TODO replace with try-with-resources
             if (urlConnection.getResponseCode() != 200) {
                 in = new BufferedInputStream(urlConnection.getErrorStream());
             } else {

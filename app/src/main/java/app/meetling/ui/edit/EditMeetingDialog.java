@@ -25,18 +25,18 @@ import java.util.Calendar;
 import java.util.Date;
 
 import app.meetling.R;
+import app.meetling.io.Host;
 import app.meetling.io.Meeting;
 import app.meetling.io.Then;
 import app.meetling.io.User;
 import app.meetling.io.WebApi;
 
+import static app.meetling.io.Host.EXTRA_HOST;
 import static app.meetling.io.Meeting.EXTRA_MEETING;
 import static app.meetling.io.User.EXTRA_USER;
-import static app.meetling.io.WebApi.EXTRA_API_HOST;
 
 public class EditMeetingDialog extends AppCompatDialogFragment
         implements TimePickerDialog.OnTimeSetListener, DatePickerDialog.OnDateSetListener {
-    private User mUser;
     private WebApi mApi;
 
     private Listener mListener;
@@ -52,21 +52,15 @@ public class EditMeetingDialog extends AppCompatDialogFragment
     private DateFormat mDateDisplayFormat;
     private DateFormat mTimeDisplayFormat;
 
-    public static EditMeetingDialog newInstance(User user, String host) {
-        EditMeetingDialog dialog = new EditMeetingDialog();
-        Bundle args = new Bundle();
-        args.putParcelable(EXTRA_USER, user);
-        args.putString(EXTRA_API_HOST, host);
-        dialog.setArguments(args);
-        return dialog;
+    public static EditMeetingDialog newInstance(Host host) {
+        return newInstance(null, host);
     }
 
-    public static EditMeetingDialog newInstance(Meeting meeting, User user, String host) {
+    public static EditMeetingDialog newInstance(Meeting meeting, Host host) {
         EditMeetingDialog dialog = new EditMeetingDialog();
         Bundle args = new Bundle();
         args.putParcelable(EXTRA_MEETING, meeting);
-        args.putParcelable(EXTRA_USER, user);
-        args.putString(EXTRA_API_HOST, host);
+        args.putParcelable(EXTRA_HOST, host);
         dialog.setArguments(args);
         return dialog;
     }
@@ -89,8 +83,7 @@ public class EditMeetingDialog extends AppCompatDialogFragment
         Bundle args = getArguments();
         if (args != null) {
             mMeeting = args.getParcelable(EXTRA_MEETING);
-            mUser = args.getParcelable(EXTRA_USER);
-            mApi = new WebApi(args.getString(EXTRA_API_HOST));
+            mApi = new WebApi(args.getParcelable(EXTRA_HOST));
         } else {
             throw new IllegalArgumentException("Args may not be null");
         }
@@ -140,7 +133,7 @@ public class EditMeetingDialog extends AppCompatDialogFragment
                 // TODO show progressbar
 
                 if (mMeeting == null) {
-                    mApi.createMeeting(title, date, location, description, mUser)
+                    mApi.createMeeting(title, date, location, description)
                             .then(returnMeeting);
                 } else {
                     mMeeting.setTitle(title);
@@ -148,7 +141,7 @@ public class EditMeetingDialog extends AppCompatDialogFragment
                     mMeeting.setLocation(location);
                     mMeeting.setDescription(description);
 
-                    mApi.edit(mMeeting, mUser).then(returnMeeting);
+                    mApi.edit(mMeeting).then(returnMeeting);
                 }
             }
         });

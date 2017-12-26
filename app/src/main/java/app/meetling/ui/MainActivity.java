@@ -30,6 +30,7 @@ import java.util.List;
 
 import app.meetling.R;
 import app.meetling.io.AgendaItem;
+import app.meetling.io.Host;
 import app.meetling.io.LocalStorage;
 import app.meetling.io.Meeting;
 import app.meetling.io.Then;
@@ -42,6 +43,7 @@ import app.meetling.ui.edit.SetUserEmailDialog;
 import app.meetling.ui.edit.SubmitAuthCodeDialog;
 import app.meetling.ui.meeting.MeetingFragment;
 
+import static app.meetling.io.Host.EXTRA_HOST;
 import static app.meetling.io.User.EXTRA_USER;
 
 /**
@@ -52,6 +54,7 @@ public class MainActivity extends AppCompatActivity
         GreeterFragment.Callback {
     private static final String HISTORY = "history";
     private WebApi mApi;
+    private Host mHost;
     private User mUser;
     private LocalStorage mStorage;
     private List<String> mHistory;
@@ -98,7 +101,6 @@ public class MainActivity extends AppCompatActivity
         mNavigationView = (NavigationView) view;
         mNavigationView.setNavigationItemSelectedListener(this);
 
-        mApi = new WebApi("https://meetling.org");
         mStorage = new LocalStorage(this);
         mHistory = new ArrayList<>();
 
@@ -107,45 +109,36 @@ public class MainActivity extends AppCompatActivity
             return;
         }
 
+        Callback<User> init = new Callback<User>() {
+            @Override
+            public void call(User user) {
+                mUser = user;
+                populateDrawerMenu();
+                showUser();
+                handleIntent();
+            }
+        };
+
+        Callback<List<Host>> newApi = new Callback<List<Host>>() {
+            @Override
+            public void call(List<Host> hosts) {
+                mHost = hosts.get(0);
+                mApi = new WebApi(mHost);
+                mApi.getUser(mStorage).then(init);
+
+            }
+        };
+
         if (savedInstanceState != null) {
             mUser = savedInstanceState.getParcelable(EXTRA_USER);
             mHistory = savedInstanceState.getStringArrayList(HISTORY);
+            mHost = savedInstanceState.getParcelable(EXTRA_HOST);
+            mApi = new WebApi(mHost);
             populateDrawerMenu();
         } else {
-
-            final Callback<User> showUserAndHandleIntent = new Callback<User>() {
-                @Override
-                public void call(User user) {
-                    mUser = user;
-                    populateDrawerMenu();
-                    showUser();
-                    handleIntent();
-                }
-            };
-
-            final Callback<User> storeUser = new Callback<User>() {
-                @Override
-                public void call(User user) {
-                    mStorage.setCredentials(user.getId(), user.getAuthSecret());
-                    showUserAndHandleIntent.call(user);
-                }
-            };
-
-            Callback<Pair<String, String>> fetchUser = new Callback<Pair<String, String>>() {
-                @Override
-                public void call(Pair<String, String> credentials) {
-                    if (credentials == null) {
-                        mApi.login(null).then(storeUser);
-                    } else {
-                        mApi.getUser(
-                                credentials.first, credentials.second)
-                                        .then(showUserAndHandleIntent);
-                    }
-                }
-            };
-
             mProgressBar.show();
-            mStorage.getCredentials().then(fetchUser);
+
+            mStorage.getHosts().then(newApi);
         }
     }
 
@@ -161,6 +154,7 @@ public class MainActivity extends AppCompatActivity
         super.onSaveInstanceState(outState);
 
         outState.putParcelable(EXTRA_USER, mUser);
+        outState.putParcelable(EXTRA_HOST, mHost);
         outState.putStringArrayList(HISTORY, (ArrayList<String>) mHistory);
     }
 
@@ -203,12 +197,12 @@ public class MainActivity extends AppCompatActivity
                     // .DrawerListener
                     new Handler().postDelayed(() -> showDialog(
                             EditUserNameDialog.newInstance(
-                                    mUser, mApi.getHost()), "dialog_edit_user_name"), 230);
+                                    mUser, mHost), "dialog_edit_user_name"), 230);
                     break;
                 case R.id.nav_set_user_email :
                     showDialog(
                             SetUserEmailDialog.newInstance(
-                                    mUser, mApi.getHost()), "dialog_set_user_email");
+                                    mUser, mHost), "dialog_set_user_email");
                     break;
                 case R.id.nav_delete_user_email :
                     AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -233,8 +227,7 @@ public class MainActivity extends AppCompatActivity
                     break;
                 case R.id.nav_submit_auth_code :
                     showDialog(
-                            SubmitAuthCodeDialog.newInstance(
-                                    mUser, mApi.getHost()), "dialog_submit_auth_code");
+                            SubmitAuthCodeDialog.newInstance(mUser, mHost), "dialog_submit_auth_code");
                     break;
                 case R.id.nav_clear_history:
                     clearHistory();
@@ -273,14 +266,12 @@ public class MainActivity extends AppCompatActivity
 
         // TODO traffic intensive in long histories; cache meeting titles?
         for (String id : mHistory) {
-            mApi.getMeeting(id, mUser).then(addMeetingToHistoryMenu);
+            mApi.getMeeting(id).then(addMeetingToHistoryMenu);
         }
     }
 
     public void showMeeting(Meeting meeting) {
-        showFragment(
-                MeetingFragment.newInstance(
-                        meeting, mUser, mApi.getHost()), R.string.title_meeting);
+        showFragment(MeetingFragment.newInstance(meeting, mHost), R.string.title_meeting);
     }
 
     public void showUser() {
@@ -341,8 +332,7 @@ public class MainActivity extends AppCompatActivity
     @Override
     public void onCreateMeeting() {
         FragmentManager fragmentManager = getSupportFragmentManager();
-        EditMeetingDialog editMeetingDialog =
-                EditMeetingDialog.newInstance(mUser, mApi.getHost());
+        EditMeetingDialog editMeetingDialog = EditMeetingDialog.newInstance(mHost);
         editMeetingDialog.setTargetFragment(fragmentManager.findFragmentById(R.id
                 .fragment_placeholder_main), 300);
         editMeetingDialog.show(fragmentManager, "dialog_edit_meeting");
@@ -384,6 +374,7 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
+    // TODO replace with multi-host-capable version or remove
     private void handleIntent() {
         Intent intent = getIntent();
         String action = intent.getAction();
@@ -425,7 +416,7 @@ public class MainActivity extends AppCompatActivity
             }
         };
 
-        mApi.createExampleMeeting(mUser).then(getAgenda);
+        mApi.createExampleMeeting().then(getAgenda);
     }
 
     private void showMeeting(final String id) {
@@ -449,7 +440,7 @@ public class MainActivity extends AppCompatActivity
             }
         };
 
-        mApi.getMeeting(id, mUser).then(setMeeting);
+        mApi.getMeeting(id).then(setMeeting);
         getAgenda(id, tmpMeeting, items, trash, loaded, allFinished);
     }
 
@@ -481,13 +472,13 @@ public class MainActivity extends AppCompatActivity
             }
         };
 
-        mApi.getAgendaItems(meetingId, mUser).then(setItems);
-        mApi.getTrashedAgendaItems(meetingId, mUser).then(setTrash);
+        mApi.getAgendaItems(meetingId).then(setItems);
+        mApi.getTrashedAgendaItems(meetingId).then(setTrash);
     }
 
     private void showMeeting(Meeting meeting, List<AgendaItem> items, List<AgendaItem> trash) {
         MeetingFragment meetingFragment
-                = MeetingFragment.newInstance(meeting, items, trash, mUser, mApi.getHost());
+                = MeetingFragment.newInstance(meeting, items, trash, mHost);
         showFragment(meetingFragment, R.string.title_meeting);
         addToHistory(meeting.getId());
         showHistory();

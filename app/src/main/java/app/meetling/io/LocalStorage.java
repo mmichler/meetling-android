@@ -1,10 +1,12 @@
 package app.meetling.io;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteStatement;
 import android.os.AsyncTask;
 import android.support.annotation.NonNull;
 import android.support.v4.content.SharedPreferencesCompat;
@@ -33,73 +35,154 @@ public class LocalStorage {
         mDbHelper = new DbHelper(context, inMemory ? null : DB_NAME, null, DATA_MODEL_VERSION);
     }
 
-    public Then<Void> setCredentials(String userId, String authSecret) {
-        final Then<Void> then = new Then<>();
+    /**
+     *
+     * @param url A host URL in the format <code>[http/https]://host.tld</code>
+     * @return
+     */
+    public Then<Host> addHost(String url) {
+        // FIXME basic validation
+        Then<Host> then = new Then<>();
 
-        class SetCredentialsTask extends AsyncTask<String, Void, Void> {
+        class Task extends AsyncTask<Void, Void, Host> {
 
             @Override
-            protected Void doInBackground(String... params) {
-                SQLiteDatabase db = mDbHelper.getWritableDatabase();
-                String userId = params[0];
-                // TODO store auth_secret securely
-                String authSecret = params[1];
-                String sql
-                        = String.format(
-                        "INSERT OR REPLACE INTO credentials" +
-                                "(user_id, auth_secret)" +
-                                "VALUES ('%s', '%s')", userId, authSecret);
-                db.execSQL(sql);
-                close(db);
-                return null;
+            protected Host doInBackground(Void... params) {
+                long id = storeHost(null, url, null, null);
+
+                return new Host(id, url);
             }
 
             @Override
-            protected void onPostExecute(Void result) {
+            protected void onPostExecute(Host result) {
                 super.onPostExecute(result);
 
                 then.compute(result);
             }
         }
 
-        new SetCredentialsTask().execute(userId, authSecret);
+        new Task().execute();
 
         return then;
     }
 
-    public Then<Pair<String, String>> getCredentials() {
-        final Then<Pair<String, String>> then = new Then<>();
+    public Then<Host> getHost(long id) {
+        Then<Host> then = new Then<>();
 
-        class GetCredentialsTask extends AsyncTask<Void, Void, Pair<String, String>> {
+        class Task extends AsyncTask<Void, Void, Host> {
 
             @Override
-            protected Pair<String, String> doInBackground(Void... params) {
-                SQLiteDatabase db = mDbHelper.getReadableDatabase();
-                Cursor credentialResult = db.rawQuery("SELECT * FROM credentials", null);
+            protected Host doInBackground(Void... params) {
+                SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
-                if (!credentialResult.moveToNext()) {
-                    return null;
+                Cursor cursor  = db.rawQuery("SELECT * FROM hosts WHERE id = ?", new String[]{String.valueOf
+                        (id)});
+
+                Host host = null;
+
+                if (cursor != null && cursor.moveToFirst()) {
+                    host = new Host(id, cursor.getString(1), cursor.getString(2), cursor.getString(3));
+                    cursor.close();
                 }
 
-                String userId = credentialResult.getString(0);
-                String authSecret = credentialResult.getString(1);
-                credentialResult.close();
                 close(db);
 
-                return new Pair<>(userId, authSecret);
+                return host;
             }
 
             @Override
-            protected void onPostExecute(Pair<String, String> result) {
+            protected void onPostExecute(Host result) {
                 super.onPostExecute(result);
 
                 then.compute(result);
             }
         }
 
-        new GetCredentialsTask().execute();
+        new Task().execute();
 
         return then;
+    }
+
+    public Then<List<Host>> getHosts() {
+        Then<List<Host>> then = new Then<>();
+
+        class Task extends AsyncTask<Void, Void, List<Host>> {
+
+            @Override
+            protected List<Host> doInBackground(Void... params) {
+                SQLiteDatabase db = mDbHelper.getWritableDatabase();
+
+                Cursor cursor  = db.rawQuery("SELECT * FROM hosts", null);
+
+                List<Host> hosts = new ArrayList<>();
+
+                if (cursor != null) {
+                    while (cursor.moveToNext()) {
+                        hosts.add(new Host(cursor.getLong(0), cursor.getString(1), cursor.getString(2),
+                                cursor.getString(3)));
+                    }
+                    cursor.close();
+                }
+
+                close(db);
+
+                return hosts;
+            }
+
+            @Override
+            protected void onPostExecute(List<Host> result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new Task().execute();
+
+        return then;
+    }
+
+    public Then<Host> setCredentials(Host host, String userId, String authSecret) {
+        final Then<Host> then = new Then<>();
+
+        class SetCredentialsTask extends AsyncTask<Void, Void, Host> {
+
+            @Override
+            protected Host doInBackground(Void... params) {
+                return setCredentialsSync(host, userId, authSecret);
+            }
+
+            @Override
+            protected void onPostExecute(Host result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new SetCredentialsTask().execute();
+
+        return then;
+    }
+
+    Host setCredentialsSync(Host host, String userId, String authSecret) {
+        storeHost(host.getId(), host.getUrl(), userId, authSecret);
+
+        return new Host(host.getId(), host.getUrl(), userId, authSecret);
+    }
+
+    private long storeHost(Long id, String url, String userId, String authSecret) {
+        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+        // TODO store auth_secret securely
+        ContentValues values = new ContentValues();
+        values.put("id", id);
+        values.put("url", url);
+        values.put("user_id", userId);
+        values.put("authSecret", authSecret);
+
+        long out = db.replace("hosts", null, values);
+        close(db);
+        return out;
     }
 
     public Then<Boolean> setAuthRequestId(String requestId) {
@@ -291,7 +374,7 @@ public class LocalStorage {
 
     private class DbHelper extends SQLiteOpenHelper {
 
-        public DbHelper(
+        DbHelper(
                 Context context, String name, SQLiteDatabase.CursorFactory factory, int version) {
             super(context, name, factory, version);
         }
@@ -303,29 +386,34 @@ public class LocalStorage {
 
         @Override
         public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-            db.execSQL("DROP TABLE IF EXISTS credentials");
-            db.execSQL("DROP TABLE IF EXISTS history");
+            dropAll(db);
             createDb(db);
         }
 
         @Override
         public void onDowngrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-            db.execSQL("DROP TABLE IF EXISTS credentials");
-            db.execSQL("DROP TABLE IF EXISTS history");
+            dropAll(db);
             createDb(db);
         }
 
         private void createDb(SQLiteDatabase db) {
-            db.execSQL(
-                    "CREATE TABLE credentials (" +
-                            "user_id TEXT PRIMARY KEY," +
+            db.execSQL("CREATE TABLE hosts (" +
+                            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                            "url TEXT UNIQUE NOT NULL," +
+                            "user_id TEXT," +
                             "auth_secret TEXT" +
-                            ")");
+                    ")");
             db.execSQL(
                     "CREATE TABLE history (" +
                             "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                             "meeting_id TEXT" +
-                            ")");
+                    ")");
+            db.execSQL("INSERT INTO TABLE hosts VALUES('https://meetling.org', null, null)");
+        }
+
+        private void dropAll(SQLiteDatabase db) {
+            db.execSQL("DROP TABLE IF EXISTS history");
+            db.execSQL("DROP TABLE IF EXISTS hosts");
         }
     }
 }

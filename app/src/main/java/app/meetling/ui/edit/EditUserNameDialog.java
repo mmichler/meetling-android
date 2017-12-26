@@ -13,23 +13,24 @@ import android.view.View;
 import android.widget.Button;
 
 import app.meetling.R;
+import app.meetling.io.Host;
 import app.meetling.io.Then;
 import app.meetling.io.User;
 import app.meetling.io.WebApi;
 
+import static app.meetling.io.Host.EXTRA_HOST;
 import static app.meetling.io.User.EXTRA_USER;
-import static app.meetling.io.WebApi.EXTRA_API_HOST;
 
 public class EditUserNameDialog extends AppCompatDialogFragment {
     private User mUser;
     private WebApi mApi;
     private Listener mListener;
 
-    public static EditUserNameDialog newInstance(User user, String host) {
+    public static EditUserNameDialog newInstance(User user, Host host) {
         EditUserNameDialog fragment = new EditUserNameDialog();
         Bundle args = new Bundle();
         args.putParcelable(EXTRA_USER, user);
-        args.putString(EXTRA_API_HOST, host);
+        args.putParcelable(EXTRA_HOST, host);
         fragment.setArguments(args);
         return fragment;
     }
@@ -52,7 +53,7 @@ public class EditUserNameDialog extends AppCompatDialogFragment {
         Bundle args = getArguments();
         if (args != null) {
             mUser = args.getParcelable(EXTRA_USER);
-            mApi = new WebApi(args.getString(EXTRA_API_HOST));
+            mApi = new WebApi(args.getParcelable(EXTRA_HOST));
         } else {
             throw new IllegalArgumentException("Args may not be null");
         }

@@ -14,13 +14,14 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import app.meetling.R;
+import app.meetling.io.Host;
 import app.meetling.io.LocalStorage;
 import app.meetling.io.Then;
 import app.meetling.io.User;
 import app.meetling.io.WebApi;
 
+import static app.meetling.io.Host.EXTRA_HOST;
 import static app.meetling.io.User.EXTRA_USER;
-import static app.meetling.io.WebApi.EXTRA_API_HOST;
 
 public class SubmitAuthCodeDialog extends AppCompatDialogFragment {
     private static final String AUTH_CODE = "auth_code";
@@ -29,11 +30,13 @@ public class SubmitAuthCodeDialog extends AppCompatDialogFragment {
     private Listener mListener;
 
 
-    public static SubmitAuthCodeDialog newInstance(User user, String host) {
+    public static SubmitAuthCodeDialog newInstance(User user, Host host) {
+        // TODO check if authCode has already been submitted, could be the case when device was rotated
+        // while API calls were done
         SubmitAuthCodeDialog fragment = new SubmitAuthCodeDialog();
         Bundle args = new Bundle();
         args.putParcelable(EXTRA_USER, user);
-        args.putString(EXTRA_API_HOST, host);
+        args.putParcelable(EXTRA_HOST, host);
         fragment.setArguments(args);
         return fragment;
     }
@@ -56,7 +59,7 @@ public class SubmitAuthCodeDialog extends AppCompatDialogFragment {
         Bundle args = getArguments();
         if (args != null) {
             mUser = args.getParcelable(EXTRA_USER);
-            mApi = new WebApi(args.getString(EXTRA_API_HOST));
+            mApi = new WebApi(args.getParcelable(EXTRA_HOST));
         } else {
             throw new IllegalArgumentException("Args may not be null");
         }
@@ -85,7 +88,6 @@ public class SubmitAuthCodeDialog extends AppCompatDialogFragment {
             DialogUtil.monitorForEmpty(inputAuthCode, inputLayoutAuthCode, buttonPositive);
             buttonPositive.setOnClickListener(v -> {
                 LocalStorage localStorage = new LocalStorage(getContext());
-                // TODO show progressbar
 
                 Then.Callback<Boolean> returnUser = new Then.Callback<Boolean>() {
                     @Override
@@ -129,8 +131,7 @@ public class SubmitAuthCodeDialog extends AppCompatDialogFragment {
                 Then.Callback<String> authorize = new Then.Callback<String>() {
                     @Override
                     public void call(String reqId) {
-                        mApi.finishSetEmail(reqId, inputAuthCode.getText().toString(), mUser)
-                                .then(deleteAuthReq);
+                        mApi.finishSetEmail(reqId, inputAuthCode.getText().toString()).then(deleteAuthReq);
 
                     }
                 };

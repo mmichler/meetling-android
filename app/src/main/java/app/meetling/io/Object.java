@@ -8,7 +8,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /**
- * Base class for all Meetling data objects.
+ * Base class for all Meetling API data objects.
  */
 public abstract class Object implements Parcelable {
     private String mType;
@@ -73,7 +73,9 @@ public abstract class Object implements Parcelable {
         return mTrashed;
     }
 
-    public boolean equals(Object o) {
-        return o != null && this.getId().equals(o.getId());
+    @Override
+    public boolean equals(java.lang.Object other) {
+        return other != null && other.getClass() != this.getClass() && this.getId().equals(((Object) other)
+                .getId());
     }
 }

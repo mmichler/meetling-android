@@ -17,24 +17,24 @@ import android.widget.Button;
 import java.io.IOError;
 
 import app.meetling.R;
+import app.meetling.io.Host;
 import app.meetling.io.LocalStorage;
 import app.meetling.io.Then;
 import app.meetling.io.User;
 import app.meetling.io.WebApi;
 
+import static app.meetling.io.Host.EXTRA_HOST;
 import static app.meetling.io.User.EXTRA_USER;
-import static app.meetling.io.WebApi.EXTRA_API_HOST;
 
 public class SetUserEmailDialog extends AppCompatDialogFragment {
-    private User mUser;
     private WebApi mApi;
     private Listener mListener;
 
-    public static SetUserEmailDialog newInstance(User user, String host) {
+    public static SetUserEmailDialog newInstance(User user, Host host) {
         SetUserEmailDialog fragment = new SetUserEmailDialog();
         Bundle args = new Bundle();
         args.putParcelable(EXTRA_USER, user);
-        args.putString(EXTRA_API_HOST, host);
+        args.putParcelable(EXTRA_HOST, host);
         fragment.setArguments(args);
         return fragment;
     }
@@ -56,8 +56,7 @@ public class SetUserEmailDialog extends AppCompatDialogFragment {
 
         Bundle args = getArguments();
         if (args != null) {
-            mUser = args.getParcelable(EXTRA_USER);
-            mApi = new WebApi(args.getString(EXTRA_API_HOST));
+            mApi = new WebApi(args.getParcelable(EXTRA_HOST));
         } else {
             throw new IllegalArgumentException("Args may not be null");
         }
@@ -133,7 +132,7 @@ public class SetUserEmailDialog extends AppCompatDialogFragment {
                         localStorage.setAuthRequestId(authId).then(dismiss);
                     }
                 };
-                mApi.setEmail(inputEmail.getText().toString(), mUser).then(storeAuthId);
+                mApi.setEmail(inputEmail.getText().toString()).then(storeAuthId);
             });
             buttonPositive.setEnabled(false);
         });
