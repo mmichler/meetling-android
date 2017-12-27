@@ -2,7 +2,7 @@ package app.meetling;
 
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
-import android.support.v4.util.Pair;
+import android.util.Pair;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -35,14 +35,37 @@ public class LocalStorageTest {
     }
 
     @Test
+    public void addHost() throws InterruptedException {
+        List<Host> actualHosts = new ArrayList<>();
+
+        Then.Callback<List<Host>> countHosts = new Then.Callback<List<Host>>() {
+            @Override
+            public void call(List<Host> hosts) {
+                actualHosts.addAll(hosts);
+                mLatch.countDown();
+            }
+        };
+
+        Then.Callback<Host> getHosts = new Then.Callback<Host>() {
+            @Override
+            public void call(Host host) {
+                mLocalStorage.getHosts().then(countHosts);
+            }
+        };
+
+        mLocalStorage.addHost("https://testling.org").then(getHosts);
+        mLatch.await();
+        assertEquals(2, actualHosts.size());
+    }
+
+    @Test
     public void storeCredentials() throws InterruptedException {
         final String userIdExpected = "id";
         final String authSecretExpected = "secret";
-        final Pair<String, String>[] credentialsActual = new Pair[1];
+        final Pair[] credentialsActual = new Pair[1];
 
 
-        final Then.Callback<Host> readCredentials
-                = new Then.Callback<Host>() {
+        final Then.Callback<Host> readCredentials = new Then.Callback<Host>() {
             @Override
             public void call(Host host) {
                 credentialsActual[0] = new Pair<>(host.getUserId(), host.getAuthSecret());
@@ -64,7 +87,7 @@ public class LocalStorageTest {
             }
         };
 
-        mLocalStorage.addHost("https://meetling.org").then(setCredentials);
+        mLocalStorage.addHost("https://testling.org").then(setCredentials);
         mLatch.await();
 
         assertEquals(userIdExpected, credentialsActual[0].first);

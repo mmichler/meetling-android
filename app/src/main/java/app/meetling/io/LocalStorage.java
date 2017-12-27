@@ -6,14 +6,12 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
-import android.database.sqlite.SQLiteStatement;
 import android.os.AsyncTask;
 import android.support.annotation.NonNull;
-import android.support.v4.content.SharedPreferencesCompat;
-import android.support.v4.util.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 /**
  * Handles data persistence on the device.
@@ -48,9 +46,10 @@ public class LocalStorage {
 
             @Override
             protected Host doInBackground(Void... params) {
-                long id = storeHost(null, url, null, null);
+                int id = new Random().nextInt();
+                storeHost(id, url, null, null);
 
-                return new Host(id, url);
+                return getHostSync(id);
             }
 
             @Override
@@ -66,28 +65,14 @@ public class LocalStorage {
         return then;
     }
 
-    public Then<Host> getHost(long id) {
+    public Then<Host> getHost(int id) {
         Then<Host> then = new Then<>();
 
         class Task extends AsyncTask<Void, Void, Host> {
 
             @Override
             protected Host doInBackground(Void... params) {
-                SQLiteDatabase db = mDbHelper.getWritableDatabase();
-
-                Cursor cursor  = db.rawQuery("SELECT * FROM hosts WHERE id = ?", new String[]{String.valueOf
-                        (id)});
-
-                Host host = null;
-
-                if (cursor != null && cursor.moveToFirst()) {
-                    host = new Host(id, cursor.getString(1), cursor.getString(2), cursor.getString(3));
-                    cursor.close();
-                }
-
-                close(db);
-
-                return host;
+                return getHostSync(id);
             }
 
             @Override
@@ -101,6 +86,23 @@ public class LocalStorage {
         new Task().execute();
 
         return then;
+    }
+
+    private Host getHostSync(int id) {
+        SQLiteDatabase db = mDbHelper.getWritableDatabase();
+
+        Cursor cursor  = db.rawQuery(String.format("SELECT * FROM hosts where id = %d", id), null);
+
+        Host host = null;
+
+        if (cursor != null && cursor.moveToFirst()) {
+            host = new Host(id, cursor.getString(1), cursor.getString(2), cursor.getString(3));
+            cursor.close();
+        }
+
+        close(db);
+
+        return host;
     }
 
     public Then<List<Host>> getHosts() {
@@ -118,7 +120,7 @@ public class LocalStorage {
 
                 if (cursor != null) {
                     while (cursor.moveToNext()) {
-                        hosts.add(new Host(cursor.getLong(0), cursor.getString(1), cursor.getString(2),
+                        hosts.add(new Host(cursor.getInt(0), cursor.getString(1), cursor.getString(2),
                                 cursor.getString(3)));
                     }
                     cursor.close();
@@ -171,18 +173,18 @@ public class LocalStorage {
         return new Host(host.getId(), host.getUrl(), userId, authSecret);
     }
 
-    private long storeHost(Long id, String url, String userId, String authSecret) {
+    private void storeHost(Integer id, String url, String userId, String authSecret) {
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         // TODO store auth_secret securely
         ContentValues values = new ContentValues();
         values.put("id", id);
         values.put("url", url);
         values.put("user_id", userId);
-        values.put("authSecret", authSecret);
+        values.put("auth_secret", authSecret);
 
-        long out = db.replace("hosts", null, values);
+        db.replaceOrThrow("hosts", null, values);
+
         close(db);
-        return out;
     }
 
     public Then<Boolean> setAuthRequestId(String requestId) {
@@ -398,7 +400,7 @@ public class LocalStorage {
 
         private void createDb(SQLiteDatabase db) {
             db.execSQL("CREATE TABLE hosts (" +
-                            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                            "id INTEGER PRIMARY KEY NOT NULL," +
                             "url TEXT UNIQUE NOT NULL," +
                             "user_id TEXT," +
                             "auth_secret TEXT" +
@@ -408,7 +410,7 @@ public class LocalStorage {
                             "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                             "meeting_id TEXT" +
                     ")");
-            db.execSQL("INSERT INTO TABLE hosts VALUES('https://meetling.org', null, null)");
+            db.execSQL("INSERT INTO hosts(id, url) VALUES(random(), 'https://meetling.org')");
         }
 
         private void dropAll(SQLiteDatabase db) {
