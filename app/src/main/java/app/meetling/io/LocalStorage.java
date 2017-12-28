@@ -1,10 +1,12 @@
 package app.meetling.io;
 
+import android.annotation.SuppressLint;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.AsyncTask;
 import android.support.annotation.NonNull;
@@ -16,6 +18,7 @@ import java.util.Random;
 /**
  * Handles data persistence on the device.
  */
+@SuppressLint({"StaticFieldLeak", "DefaultLocale"})
 public class LocalStorage {
     private static final int DATA_MODEL_VERSION = 1;
     private static final String DB_NAME = "meetling";
@@ -47,7 +50,20 @@ public class LocalStorage {
             @Override
             protected Host doInBackground(Void... params) {
                 int id = new Random().nextInt();
-                storeHost(id, url, null, null);
+                SQLiteDatabase db = mDbHelper.getWritableDatabase();
+
+                ContentValues values = new ContentValues();
+                values.put("id", id);
+                values.put("url", url);
+
+                try {
+                    db.insertOrThrow("hosts", null, values);
+                } catch (SQLiteException e) {
+                    then.setError(e);
+                }
+
+
+                close(db);
 
                 return getHostSync(id);
             }
@@ -168,23 +184,18 @@ public class LocalStorage {
     }
 
     Host setCredentialsSync(Host host, String userId, String authSecret) {
-        storeHost(host.getId(), host.getUrl(), userId, authSecret);
-
-        return new Host(host.getId(), host.getUrl(), userId, authSecret);
-    }
-
-    private void storeHost(Integer id, String url, String userId, String authSecret) {
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         // TODO store auth_secret securely
         ContentValues values = new ContentValues();
-        values.put("id", id);
-        values.put("url", url);
+        values.put("id", host.getId());
         values.put("user_id", userId);
         values.put("auth_secret", authSecret);
 
-        db.replaceOrThrow("hosts", null, values);
+        db.update("hosts", values, String.format("id = %d", host.getId()), null);
 
         close(db);
+
+        return getHostSync(host.getId());
     }
 
     public Then<Boolean> setAuthRequestId(String requestId) {

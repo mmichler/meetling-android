@@ -1,11 +1,14 @@
 package app.meetling;
 
+import android.database.sqlite.SQLiteConstraintException;
 import android.support.test.InstrumentationRegistry;
 import android.support.test.runner.AndroidJUnit4;
 import android.util.Pair;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
@@ -24,6 +27,8 @@ import static org.junit.Assert.assertEquals;
  */
 @RunWith(AndroidJUnit4.class)
 public class LocalStorageTest {
+    @Rule
+    public ExpectedException mException = ExpectedException.none();
     private LocalStorage mLocalStorage;
     private CountDownLatch mLatch = null;
 
@@ -56,6 +61,34 @@ public class LocalStorageTest {
         mLocalStorage.addHost("https://testling.org").then(getHosts);
         mLatch.await();
         assertEquals(2, actualHosts.size());
+    }
+
+    @Test
+    public void addHostNotUnique() throws InterruptedException {
+        RuntimeException[] exception = new RuntimeException[1];
+        mException.expect(SQLiteConstraintException.class);
+        mException.expectMessage("2067"); // SQLITE_CONSTRAINT_UNIQUE
+
+        Then.Callback<Host> waitForException = new Then.Callback<Host>() {
+            @Override
+            public void call(Host host) {
+                mLatch.countDown();
+                exception[0] = getError();
+            }
+        };
+
+        Then.Callback<Host> addTheSameHost = new Then.Callback<Host>() {
+            @Override
+            public void call(Host host) {
+                mLocalStorage.addHost("https://testling.org").then(waitForException);
+            }
+        };
+
+        mLocalStorage.addHost("https://testling.org").then(addTheSameHost);
+
+        mLatch.await();
+
+        throw exception[0];
     }
 
     @Test

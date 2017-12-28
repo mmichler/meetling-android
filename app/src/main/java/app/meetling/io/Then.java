@@ -8,7 +8,7 @@ import android.util.Pair;
 public class Then<Result> {
     private Callback<Result> mCallback;
 
-    void setError(Pair<String, String> error) {
+    void setError(RuntimeException error) {
         if (mCallback != null) {
            mCallback.setError(error);
         }
@@ -25,14 +25,23 @@ public class Then<Result> {
     }
 
     public static abstract class Callback<Result> {
-        private Pair<String, String> mError;
+        private RuntimeException mError;
 
-        void setError(Pair<String, String> error) {
+        void setError(RuntimeException error) {
             mError = error;
         }
 
-        protected Pair<String, String> getError() {
+        protected RuntimeException getError() {
             return mError;
+        }
+
+        /**
+         * Convenience method for rethrowing errors on the main thread.
+         */
+        protected void rethrowError() {
+            if (mError != null) {
+                throw mError;
+            }
         }
 
         public abstract void call(Result result);

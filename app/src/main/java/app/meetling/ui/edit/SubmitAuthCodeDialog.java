@@ -100,31 +100,33 @@ public class SubmitAuthCodeDialog extends AppCompatDialogFragment {
                 Then.Callback<User> deleteAuthReq = new Then.Callback<User>() {
                     @Override
                     public void call(User user) {
-                        if (getError() == null) {
-                            mUser = user;
-                            localStorage.deleteAuthRequestId().then(returnUser);
+                        try {
+                            rethrowError();
+                        } catch (WebApi.ValueError valueError) {
+                            String uiMessage;
+                            switch (valueError.getMessage()) {
+                                case "auth_request_not_found" :
+                                    uiMessage = getString(R.string.toast_auth_request_not_found);
+                                    break;
+                                case "auth_invalid" :
+                                    uiMessage = getString(R.string.toast_auth_invalid);
+                                    break;
+                                case "email_duplicate" :
+                                    uiMessage = getString(R.string.toast_email_duplicate);
+                                    break;
+                                default:
+                                    throw new RuntimeException("Unknown error while authorizing user: "
+                                            + getError().getMessage());
+                            }
+                            Toast.makeText(
+                                    getContext(), uiMessage,
+                                    Toast.LENGTH_LONG).show();
+                            dismiss();
                             return;
                         }
 
-                        String uiMessage;
-                        switch (getError().second) {
-                            case "auth_request_not_found" :
-                                uiMessage = getString(R.string.toast_auth_request_not_found);
-                                break;
-                            case "auth_invalid" :
-                                uiMessage = getString(R.string.toast_auth_invalid);
-                                break;
-                            case "email_duplicate" :
-                                uiMessage = getString(R.string.toast_email_duplicate);
-                                break;
-                            default:
-                                throw new RuntimeException("Unknown error while authorizing user: "
-                                        + getError().second);
-                        }
-                        Toast.makeText(
-                                getContext(), uiMessage,
-                                Toast.LENGTH_LONG).show();
-                        dismiss();
+                        mUser = user;
+                        localStorage.deleteAuthRequestId().then(returnUser);
                     }
                 };
 

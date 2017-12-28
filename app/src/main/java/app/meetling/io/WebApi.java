@@ -242,7 +242,7 @@ public class WebApi {
         Then<User> then = new Then<>();
 
         class RequestTask extends AsyncTask<Void, Void, User> {
-            private Pair<String, String> error;
+            private ValueError error;
 
             @Override
             protected User doInBackground(Void... params) {
@@ -261,7 +261,7 @@ public class WebApi {
                 try {
                     checkForErrors(returnObj);
                 } catch (ValueError valueError) {
-                    error = new Pair<>("ValueError", valueError.getMessage());
+                    error = valueError;
                     return null;
                 }
 
@@ -275,8 +275,8 @@ public class WebApi {
                 if (error != null) {
                     then.setError(error);
                 }
-                then.compute(result);
 
+                then.compute(result);
             }
         }
 
