@@ -60,6 +60,7 @@ public class LocalStorage {
                     db.insertOrThrow("hosts", null, values);
                 } catch (SQLiteException e) {
                     then.setError(e);
+                    return null;
                 }
 
 
@@ -81,6 +82,37 @@ public class LocalStorage {
         return then;
     }
 
+    public Then<Void> removeHost(int id) {
+        Then<Void> then = new Then<>();
+
+        class Task extends AsyncTask<Void, Void, Void> {
+
+            @Override
+            protected Void doInBackground(Void... params) {
+                SQLiteDatabase db = mDbHelper.getWritableDatabase();
+
+                int rows;
+                rows = db.delete("hosts", String.format("id = %d", id), null);
+                if (rows == 0) {
+                    then.setError(new IllegalArgumentException("No host object with this ID in DB."));
+                }
+
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void result) {
+                super.onPostExecute(result);
+
+                then.compute(result);
+            }
+        }
+
+        new Task().execute();
+
+        return then;
+    }
+
     public Then<Host> getHost(int id) {
         Then<Host> then = new Then<>();
 
@@ -88,7 +120,12 @@ public class LocalStorage {
 
             @Override
             protected Host doInBackground(Void... params) {
-                return getHostSync(id);
+                try {
+                    return getHostSync(id);
+                } catch (IllegalArgumentException e) {
+                    then.setError(e);
+                }
+                return null;
             }
 
             @Override
@@ -109,11 +146,13 @@ public class LocalStorage {
 
         Cursor cursor  = db.rawQuery(String.format("SELECT * FROM hosts where id = %d", id), null);
 
-        Host host = null;
+        Host host;
 
         if (cursor != null && cursor.moveToFirst()) {
             host = new Host(id, cursor.getString(1), cursor.getString(2), cursor.getString(3));
             cursor.close();
+        } else {
+            throw new IllegalArgumentException("No host object with this ID in DB.");
         }
 
         close(db);

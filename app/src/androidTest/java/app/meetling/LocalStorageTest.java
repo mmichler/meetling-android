@@ -21,6 +21,7 @@ import app.meetling.io.LocalStorage;
 import app.meetling.io.Then;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Unit tests for the local storage access methods.
@@ -85,6 +86,42 @@ public class LocalStorageTest {
         };
 
         mLocalStorage.addHost("https://testling.org").then(addTheSameHost);
+
+        mLatch.await();
+
+        throw exception[0];
+    }
+
+    @Test
+    public void removeHost() throws InterruptedException {
+        mException.expect(IllegalArgumentException.class);
+        RuntimeException[] exception = new RuntimeException[1];
+        final Host[] testHost = new Host[1];
+
+        Then.Callback<Host> waitForException = new Then.Callback<Host>() {
+            @Override
+            public void call(Host host) {
+                mLatch.countDown();
+                exception[0] = getError();
+            }
+        };
+
+        Then.Callback<Void> getHost = new Then.Callback<Void>() {
+            @Override
+            public void call(Void aVoid) {
+                mLocalStorage.getHost(testHost[0].getId()).then(waitForException);
+            }
+        };
+
+        Then.Callback<Host> deleteHost = new Then.Callback<Host>() {
+            @Override
+            public void call(Host host) {
+                testHost[0] = host;
+                mLocalStorage.removeHost(host.getId()).then(getHost);
+            }
+        };
+
+        mLocalStorage.addHost("https://testling.org").then(deleteHost);
 
         mLatch.await();
 
