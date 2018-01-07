@@ -171,7 +171,7 @@ public class WebApi {
                             = (JSONObject) httpGet("/api/users/" + mHost.getUserId(), mHost.getAuthSecret());
                 } else {
                     // create new user
-                    returnObj = (JSONObject) httpPost("/api/login", "{code: null}");
+                    returnObj = (JSONObject) httpPost("/api/login");
                 }
 
                 checkForErrors(returnObj);
@@ -752,6 +752,10 @@ public class WebApi {
         }
     }
 
+    private Object httpPost(String endpoint) {
+        return httpPost(endpoint, null, null);
+    }
+
     private Object httpPost(String endpoint, JSONObject content) {
         return httpPost(endpoint, content, null);
     }
@@ -859,7 +863,7 @@ public class WebApi {
 
         try {
             String content = stringBuilder.toString();
-            Log.v("HTTPS response body", content);
+            Log.v("HTTP response body", content);
             return new JSONTokener(stringBuilder.toString()).nextValue();
         } catch (JSONException e) {
             // unreachable

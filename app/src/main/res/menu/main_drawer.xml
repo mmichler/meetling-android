@@ -46,6 +46,10 @@
                 android:id="@+id/nav_submit_auth_code"
                 android:enabled="false"
                 android:title="Submit Authorization Code"/>
+            <item
+                android:id="@+id/nav_add_host"
+                android:visible="true"
+                android:title="@string/dialog_add_host"/>
         </menu>
     </item>
 

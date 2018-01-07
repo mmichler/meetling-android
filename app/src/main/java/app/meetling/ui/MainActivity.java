@@ -11,7 +11,6 @@ import android.support.design.widget.NavigationView;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
-import android.support.v4.util.Pair;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.ContentLoadingProgressBar;
 import android.support.v4.widget.DrawerLayout;
@@ -37,6 +36,7 @@ import app.meetling.io.Then;
 import app.meetling.io.Then.Callback;
 import app.meetling.io.User;
 import app.meetling.io.WebApi;
+import app.meetling.ui.edit.AddHostDialog;
 import app.meetling.ui.edit.EditMeetingDialog;
 import app.meetling.ui.edit.EditUserNameDialog;
 import app.meetling.ui.edit.SetUserEmailDialog;
@@ -122,7 +122,11 @@ public class MainActivity extends AppCompatActivity
         Callback<List<Host>> newApi = new Callback<List<Host>>() {
             @Override
             public void call(List<Host> hosts) {
-                mHost = hosts.get(0);
+                hosts.forEach(host -> {
+                    if (host.getUrl().equals("https://meetling.org")) {
+                        mHost = host;
+                    }
+                });
                 mApi = new WebApi(mHost);
                 mApi.getUser(mStorage).then(init);
 
@@ -228,6 +232,9 @@ public class MainActivity extends AppCompatActivity
                 case R.id.nav_submit_auth_code :
                     showDialog(
                             SubmitAuthCodeDialog.newInstance(mUser, mHost), "dialog_submit_auth_code");
+                    break;
+                case R.id.nav_add_host :
+                    showDialog(AddHostDialog.newInstance(), "dialog_add_host");
                     break;
                 case R.id.nav_clear_history:
                     clearHistory();

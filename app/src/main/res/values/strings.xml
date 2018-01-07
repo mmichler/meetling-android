@@ -30,6 +30,7 @@
     <string name="dialog_discard_affirmative">Discard</string>
     <string name="dialog_discard_negative">Cancel</string>
     <string name="dialog_edit_user_name">Edit Username</string>
+    <string name="dialog_add_host">Add Host</string>
 
     <string name="about_this_app">This app is a client for meetling.org</string>
     <string name="about_license">
@@ -43,6 +44,9 @@
     <string name="caption_submit_auth_code">Submit authorization code</string>
     <string name="caption_help_email" >After saving the email address, you will receive an email
     with an authorization code. Your email address will be changed after you have submitted this code.
+    </string>
+    <string name="caption_help_host_url">The host URL consists of the domain name and the protocol
+        prefixes http:// or https://. Example: https://meetling.org.
     </string>
     <string name="dialog_edit_user_email" >Set Email Address</string>
     <string name="dialog_submit_auth_code">Submit Authorization Code</string>

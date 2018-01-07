@@ -14,6 +14,7 @@ import android.support.annotation.NonNull;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Handles data persistence on the device.
@@ -49,23 +50,13 @@ public class LocalStorage {
 
             @Override
             protected Host doInBackground(Void... params) {
-                int id = new Random().nextInt();
-                SQLiteDatabase db = mDbHelper.getWritableDatabase();
-
-                ContentValues values = new ContentValues();
-                values.put("id", id);
-                values.put("url", url);
-
+                int id;
                 try {
-                    db.insertOrThrow("hosts", null, values);
+                    id = addHostSync(url, null);
                 } catch (SQLiteException e) {
                     then.setError(e);
                     return null;
                 }
-
-
-                close(db);
-
                 return getHostSync(id);
             }
 
@@ -80,6 +71,30 @@ public class LocalStorage {
         new Task().execute();
 
         return then;
+    }
+
+    private int addHostSync(String url, SQLiteDatabase db) {
+        int id = new Random().nextInt();
+        boolean doClose = true;
+        if (db == null) {
+            db = mDbHelper.getWritableDatabase();
+        } else {
+            doClose = false;
+        }
+
+        ContentValues values = new ContentValues();
+        values.put("id", id);
+        values.put("url", url);
+
+        try {
+            db.insertOrThrow("hosts", null, values);
+        } finally {
+            if (doClose) {
+                close(db);
+            }
+        }
+
+        return id;
     }
 
     public Then<Void> removeHost(int id) {
@@ -226,11 +241,15 @@ public class LocalStorage {
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         // TODO store auth_secret securely
         ContentValues values = new ContentValues();
-        values.put("id", host.getId());
         values.put("user_id", userId);
         values.put("auth_secret", authSecret);
 
-        db.update("hosts", values, String.format("id = %d", host.getId()), null);
+        int rows;
+        rows = db.update("hosts", values, "id = ?", new
+                String[]{String.valueOf(host.getId())});
+        if (rows == 0) {
+            throw new IllegalArgumentException("No host object with this ID in DB.");
+        }
 
         close(db);
 
@@ -460,7 +479,8 @@ public class LocalStorage {
                             "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                             "meeting_id TEXT" +
                     ")");
-            db.execSQL("INSERT INTO hosts(id, url) VALUES(random(), 'https://meetling.org')");
+
+            addHostSync("https://meetling.org", db);
         }
 
         private void dropAll(SQLiteDatabase db) {
