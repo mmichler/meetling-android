@@ -30,6 +30,7 @@
     <string name="dialog_discard_affirmative">Discard</string>
     <string name="dialog_discard_negative">Cancel</string>
     <string name="dialog_edit_user_name">Edit Username</string>
+    <string name="dialog_pick_host">Select Host</string>
     <string name="dialog_add_host">Add Host</string>
 
     <string name="about_this_app">This app is a client for meetling.org</string>
